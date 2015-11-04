@@ -21,19 +21,24 @@ aws_iot_mqtt_client myClient;
 char JSON_buf[100];
 int cnt = 0;
 int rc = 1;
+bool success_connect = false;
 
-void print_log(char* src, int code) {
+bool print_log(char* src, int code) {
+  bool ret = true;
   if(code == 0) {
     Serial.print("[LOG] command: ");
     Serial.print(src);
     Serial.println(" completed.");
+    ret = true;
   }
   else {
     Serial.print("[ERR] command: ");
     Serial.print(src);
     Serial.print(" code: ");
     Serial.println(code);
+    ret = false;
   }
+  return ret;
 }
 
 void msg_callback_delta(char* src, int len) {
@@ -56,17 +61,22 @@ void setup() {
   sprintf(curr_version, "AWS IoT SDK Version(dev) %d.%d.%d-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TAG);
   Serial.println(curr_version);
 
-  print_log("setup", myClient.setup(AWS_IOT_CLIENT_ID));
-  print_log("config", myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH));
-  print_log("connect", myClient.connect());
-  print_log("shadow init", myClient.shadow_init(AWS_IOT_MY_THING_NAME));
-  print_log("register thing shadow delta function", myClient.shadow_register_delta_func(AWS_IOT_MY_THING_NAME, msg_callback_delta));
-
+  if(print_log("setup", myClient.setup(AWS_IOT_CLIENT_ID))) {
+    if(print_log("config", myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH))) {
+      if(print_log("connect", myClient.connect())) {
+        success_connect = true;
+        print_log("shadow init", myClient.shadow_init(AWS_IOT_MY_THING_NAME));
+        print_log("register thing shadow delta function", myClient.shadow_register_delta_func(AWS_IOT_MY_THING_NAME, msg_callback_delta));
+      }
+    }
+  }
 }
 
 void loop() {
-  if(myClient.yield()) {
-    Serial.println("Yield failed.");
+  if(success_connect) {
+    if(myClient.yield()) {
+      Serial.println("Yield failed.");
+    }
+    delay(1000); // check for incoming delta per 100 ms
   }
-  delay(1000); // check for incoming delta per 100 ms
 }

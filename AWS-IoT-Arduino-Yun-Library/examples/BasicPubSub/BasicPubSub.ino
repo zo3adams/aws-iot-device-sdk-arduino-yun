@@ -21,6 +21,7 @@ aws_iot_mqtt_client myClient; // init iot_mqtt_client
 char msg[32]; // read-write buffer
 int cnt = 0; // loop counts
 int rc = -100; // return value placeholder
+bool success_connect = false; // whether it is connected
 
 // Basic callback function that prints out the message
 void msg_callback(char* src, int len) {
@@ -41,23 +42,30 @@ void setup() {
   sprintf(curr_version, "AWS IoT SDK Version(dev) %d.%d.%d-%s\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, VERSION_TAG);
   Serial.println(curr_version);
   // Set up the client
-  if((rc = myClient.setup(AWS_IOT_CLIENT_ID)) != 0) {
+  if((rc = myClient.setup(AWS_IOT_CLIENT_ID)) == 0) {
+    // Load user configuration
+    if((rc = myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH)) == 0) {
+      // Use default connect: 60 sec for keepalive
+      if((rc = myClient.connect()) == 0) {
+        success_connect = true;
+        // Subscribe to "topic1"
+        if((rc = myClient.subscribe("topic1", 1, msg_callback)) != 0) {
+          Serial.println("Subscribe failed!");
+          Serial.println(rc);
+        }
+      }
+      else {
+        Serial.println("Connect failed!");
+        Serial.println(rc);
+      }
+    }
+    else {
+      Serial.println("Config failed!");
+      Serial.println(rc);
+    }
+  }
+  else {
     Serial.println("Setup failed!");
-    Serial.println(rc);
-  }
-  // Load user configuration
-  if((rc = myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH)) != 0) {
-    Serial.println("Config failed!");
-    Serial.println(rc);
-  }
-  // Use default connect: 60 sec for keepalive
-  if((rc = myClient.connect()) != 0) {
-    Serial.println("Connect failed!");
-    Serial.println(rc);
-  }
-  // Subscribe to "topic1"
-  if((rc = myClient.subscribe("topic1", 1, msg_callback)) != 0) {
-    Serial.println("Subscribe failed!");
     Serial.println(rc);
   }
   // Delay to make sure SUBACK is received, delay time could vary according to the server
@@ -65,22 +73,24 @@ void setup() {
 }
 
 void loop() {
-  // Generate a new message in each loop and publish to "topic1"
-  sprintf(msg, "new message %d", cnt);
-  if((rc = myClient.publish("topic1", msg, strlen(msg), 1, false)) != 0) {
-    Serial.println("Publish failed!");
-    Serial.println(rc);
+  if(success_connect) {
+    // Generate a new message in each loop and publish to "topic1"
+    sprintf(msg, "new message %d", cnt);
+    if((rc = myClient.publish("topic1", msg, strlen(msg), 1, false)) != 0) {
+      Serial.println("Publish failed!");
+      Serial.println(rc);
+    }
+  
+    // Get a chance to run a callback
+    if((rc = myClient.yield()) != 0) {
+      Serial.println("Yield failed!");
+      Serial.println(rc);
+    }
+  
+    // Done with the current loop
+    sprintf(msg, "loop %d done", cnt++);
+    Serial.println(msg);
+  
+    delay(1000);
   }
-  
-  // Get a chance to run a callback
-  if((rc = myClient.yield()) != 0) {
-    Serial.println("Yield failed!");
-    Serial.println(rc);
-  }
-  
-  // Done with the current loop
-  sprintf(msg, "loop %d done", cnt++);
-  Serial.println(msg);
-  
-  delay(1000);
 }

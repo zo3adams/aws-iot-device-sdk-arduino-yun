@@ -7,7 +7,7 @@ config	KEYWORD2
 connect	KEYWORD2
 publish	KEYWORD2
 subscribe	KEYWORD2
-unsubscirbe	KEYWORD2
+unsubscribe	KEYWORD2
 disconnect	KEYWORD2
 yield	KEYWORD2
 shadow_init	KEYWORD2
