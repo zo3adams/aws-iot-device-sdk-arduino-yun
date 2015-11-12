@@ -16,9 +16,9 @@
 #ifndef config_h
 #define config_h
 
-#define MAX_BUF_SIZE 256                // maximum number of bytes to publish/receive
-#define MAX_SUB 15                // maximum number of subscribe
-#define CMD_TIME_OUT 100                // maximum time to wait for feedback from AR9331, 100 = 10 sec
-#define MAX_SHADOW_TOPIC_LEN 64               // maximum length for shadow topic, the metadata length for shadow topic is 32, make sure your thing name length plus that does not exceed this limit
+#define MAX_BUF_SIZE 256										// maximum number of bytes to publish/receive
+#define MAX_SUB 15 												// maximum number of subscribe
+#define CMD_TIME_OUT 100										// maximum time to wait for feedback from AR9331, 100 = 10 sec
+#define MAX_SHADOW_TOPIC_LEN 64                                 // maximum length for shadow topic, the metadata length for shadow topic is 32, make sure your thing name length plus that does not exceed this limit
 
 #endif

@@ -43,10 +43,10 @@ For Arduino IDE installation on Linux, please visit [here](http://playground.ard
 2. Make sure your computer is connected to the same network (local IP address range).  
 3. Download the AWS IoT CA file from [here](https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem).
 4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/certs`.  
-5. Under `AWS-IoT-Arduino-Yun-SDK`, Modify `mySCP.sh` and `mySETUP.sh` and replace `[your_boards_IP]` with your board’s IP address and `[your_boards_IP]` with your password (default for Arduino Yún: “arduino”).  
-6. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 mySCP.sh` and execute it as `./mySCP.sh`.  
+5. Under `AWS-IoT-Arduino-Yun-SDK`, Modify `codebase_upload.sh` and `environment_setup.sh` and replace `[your_boards_IP]` with your board’s IP address and `[your_boards_IP]` with your password (default for Arduino Yún: “arduino”).  
+6. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 codebase_upload.sh` and execute it as `./codebase_upload.sh`.  
 	This will upload the python code and keys, CA files and certificates to openWRT running on the more powerful microcontroller on you Arduino Yún board.
-7. In the same directory, do `chmod 755 mySETUP.sh` and execute it as `./mySETUP.sh`.  
+7. In the same directory, do `chmod 755 environment_setup.sh` and execute it as `./environment_setup.sh`.  
 	This will download and install libraries for openWRT to implement the necessary scripting environment as well as communication protocols.
 
   Step 7 can take 15-20 minutes for the device to download and install the required packages (distribute, python-openssl, pip, paho-mqtt).  
@@ -582,7 +582,8 @@ The following error codes are defined in `AWS-IoT-Arduino-Yun-Library/aws_iot_er
 		SHADOW_GET_ERROR = -13,
 		SHADOW_DELETE_ERROR = -14,
 		CONFIG_ERROR = -15,
-		OUT_OF_SKETCH_SUBSCRIBE_MEMORY = -16
+		OUT_OF_SKETCH_SUBSCRIBE_MEMORY = -16,
+		SERIAL1_COMMUNICATION_ERROR = -17
 	} IoT_Error_t;
 	
 <a name="support"></a>

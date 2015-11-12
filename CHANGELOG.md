@@ -1,3 +1,13 @@
+# 1.0.2 (November 5, 2015)
+Features:
+
+N/A
+
+Bugfixes/Improvements:
+
+* Added compatibility for Linino openWRT embedded Linux OS (BusyBox v1.19.4 2015-10-03 14:03:26 CEST)
+* Refactored file names for credential/codebase upload shell scripts and environment setup shell scripts
+
 # 1.0.1 (November 3, 2015)
 Features:
 

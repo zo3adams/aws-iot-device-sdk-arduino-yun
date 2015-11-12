@@ -20,43 +20,91 @@
 #include "string.h"
 #include "ctype.h"
 
-#define linux_baud 250000
+#define LINUX_BAUD_DEFAULT 250000
+#define LINUX_BAUD_LININO 115200
 #define SHADOW_TOPIC_FIXED_LEN 32 // strlen("$aws/things/") + strlen("/shadow/update/delta")
 #define RETURN_KEY 13 // ASCII code for '\r'
 #define NEXTLINE_KEY 10 // ASCII code for '\n'
+#define MAX_NUM_PARA 7 // Maximum number of parameters in protocol communication
 
 const char* OUT_OF_BUFFER_ERR_MSG = "OUT OF BUFFER SIZE";
+
+// Choose different baudrate for different version of openWRT OS
+Baud_t aws_iot_mqtt_client::find_baud_type() {
+	Baud_t rc_type = BAUD_TYPE_UNKNOWN;
+	// 1st attempt
+	Serial1.begin(LINUX_BAUD_DEFAULT);
+	while(!Serial1);
+	exec_cmd("\n", true, false); // jump over the welcoming prompt for Open WRT
+	delay(1000); // in case this is the first boot-up
+	int i;
+	for(i = 0; i < MAX_NUM_PARA + 1; i++) {
+		// exit the previous python process and jump over the half-baked protocol communication
+		exec_cmd("~\n", true, false);
+	}
+	delay(1500); // delay 1500 ms for all related python script to exit
+
+	exec_cmd("uname\n", true, false); // check OS version
+	if(strncmp(rw_buf, "Linux", 5) != 0) { // Not an Arduino?
+		Serial1.begin(LINUX_BAUD_LININO);
+		while(!Serial1);
+		exec_cmd("\n", true, false); // jump over the welcoming prompt for Open WRT
+		delay(1000); // in case this is the first boot-up
+		int i;
+		for(i = 0; i < MAX_NUM_PARA + 1; i++) {
+			// exit the previous python process and jump over all possible half-baked protocol communication
+			exec_cmd("~\n", true, false);
+		}
+		delay(1500); // delay 1500 ms for all related python script to exit
+
+		exec_cmd("uname\n", true, false); // check OS version
+		if(strncmp(rw_buf, "Linux", 5) != 0) {
+			// No more board types to try
+		}
+		else {rc_type = BAUD_TYPE_LININO;}
+	}
+	else {rc_type = BAUD_TYPE_ARDUINO;}
+
+	return rc_type;
+}
+
+IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version) {
+	// Serial1 is started before this call
+	IoT_Error_t rc = NONE_ERROR;
+	exec_cmd("cd /root\n", false, false);
+	exec_cmd("python aws_iot_mqtt_client.py\n", false, false);
+
+	// Create obj
+	exec_cmd("i\n", false, false);
+
+	sprintf(rw_buf, "%s\n", client_id);
+	exec_cmd(rw_buf, false, false);
+
+	int num_temp = clean_session ? 1 : 0;
+	sprintf(rw_buf, "%d\n", num_temp);
+	exec_cmd(rw_buf, false, false);
+
+	sprintf(rw_buf, "%u\n", MQTT_version);
+	exec_cmd(rw_buf, true, false);
+
+	if(strncmp(rw_buf, "I T", 3) != 0) {rc = SET_UP_ERROR;}
+
+	return rc;
+}
 
 IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTTv_t MQTT_version) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(client_id == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(client_id) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
+	// No input error below this line
 	else {
 		my_client_id = client_id;
-		// Start Serial1
-		Serial1.begin(linux_baud);
-		while(!Serial1); // blocking until Serial1 is ready
-
-		exec_cmd("cd .\n", false, false); // placeholder: jump over the welcoming prompt for Open WRT
-		exec_cmd("cd /root\n", false, false);
-	    	exec_cmd("~\n", true, false); // exit the previous python process
-	    	delay(1000); // delay 1000 ms for all related python script to exit
-		exec_cmd("python aws_iot_mqtt_client.py\n", false, false);
-
-		// Create obj
-		exec_cmd("i\n", false, false);
-
-		sprintf(rw_buf, "%s\n", client_id);
-		exec_cmd(rw_buf, false, false);
-
-		int num_temp = clean_session ? 1 : 0;
-		sprintf(rw_buf, "%d\n", num_temp);
-		exec_cmd(rw_buf, false, false);
-
-		sprintf(rw_buf, "%u\n", MQTT_version);
-		exec_cmd(rw_buf, true, false);
-
-		if(strncmp(rw_buf, "I T", 3) != 0) {rc = SET_UP_ERROR;}
+		Baud_t baud_type = find_baud_type(); // Find out baud type
+		// Communication failed due to baud rate issue
+		if(BAUD_TYPE_UNKNOWN == baud_type) {rc = SERIAL1_COMMUNICATION_ERROR;}
+		else {
+			rc = setup_exec(client_id, clean_session, MQTT_version);
+		}
 	}
 
 	return rc;

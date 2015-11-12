@@ -26,6 +26,12 @@ typedef enum {
 	MQTTv311 = 4
 } MQTTv_t;
 
+typedef enum {
+	BAUD_TYPE_UNKNOWN = -1,
+	BAUD_TYPE_ARDUINO = 0,
+	BAUD_TYPE_LININO = 1
+} Baud_t;
+
 typedef void(*message_callback)(char*, int);
 
 class aws_iot_mqtt_client {
@@ -70,6 +76,8 @@ class aws_iot_mqtt_client {
 		bool timeout_flag; // Is there a timeout when executing RPC
 		unsigned int ThingShadow_req_num; // sequence number for ThingShadow request
 		IoT_Error_t base_subscribe(char* topic, int qos, message_callback cb, int is_delta);
+		Baud_t find_baud_type();
+		IoT_Error_t setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version);
 		void exec_cmd(const char* cmd, bool wait, bool single_line);
 		bool is_num(char* src);
 };
