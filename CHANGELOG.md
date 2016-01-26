@@ -1,3 +1,14 @@
+# 1.0.3 (January 22, 2016)
+Features:
+
+* Switch from subscribe-unsubscribe mechanism to persistent subscription for shadow response processing, avoiding slow rate of shadow requests
+* Multiple shadow support
+
+Bugfixes/Improvements:
+
+* Detailed error code for better debugging experience directly in Arduino IDE
+* New example of device shadow: Thermostat App/Device simulator, with sketch for device and scripts for App both included
+
 # 1.0.2 (November 5, 2015)
 Features:
 

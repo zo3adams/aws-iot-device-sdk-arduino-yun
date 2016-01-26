@@ -42,19 +42,21 @@ For Arduino IDE installation on Linux, please visit [here](http://playground.ard
 1. Setup the Arduino Yún board and connect it to WiFi. Obtain its IP address and password.  
 2. Make sure your computer is connected to the same network (local IP address range).  
 3. Download the AWS IoT CA file from [here](https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem).
-4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/certs`.  
-5. Under `AWS-IoT-Arduino-Yun-SDK`, Modify `codebase_upload.sh` and `environment_setup.sh` and replace `[your_boards_IP]` with your board’s IP address and `[your_boards_IP]` with your password (default for Arduino Yún: “arduino”).  
-6. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 codebase_upload.sh` and execute it as `./codebase_upload.sh`.  
-	This will upload the python code and keys, CA files and certificates to openWRT running on the more powerful microcontroller on you Arduino Yún board.
-7. In the same directory, do `chmod 755 environment_setup.sh` and execute it as `./environment_setup.sh`.  
-	This will download and install libraries for openWRT to implement the necessary scripting environment as well as communication protocols.
+4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`.  
+5. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 AWSIoTArduinoYunInstallAll.sh` and execute it as `./AWSIoTArduinoYunInstallAll.sh <Board IP> <UserName> <Board Password>`. By default for Arduino Yún Board, your user name will be `root` and your password will be `arduino`.  
+	This script will upload the python runtime codebase and credentials to openWRT running on the more powerful microcontroller on you Arduino Yún board.  
+	This script will also download and install libraries for openWRT to implement the necessary scripting environment as well as communication protocols.
 
-  Step 7 can take 15-20 minutes for the device to download and install the required packages (distribute, python-openssl, pip, paho-mqtt).  
+  Step 5 can take 15-20 minutes for the device to download and install the required packages (distribute, python-openssl, pip, paho-mqtt).  
 
-  NOTE: Do NOT close the terminal before the script finished, otherwise you have to start over with step 6. Make sure you are in your local terminal before repeating step 7.  
+  NOTE: Do NOT close the terminal before the script finishes, otherwise you have to start over with step 5. Make sure you are in your local terminal before repeating step 5.  
 
-8. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Mac OS default, it should be under `Documents/Arduino/libraries`.
-9. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE. 
+6. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Mac OS default, it should be under `Documents/Arduino/libraries`.
+7. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE.  
+
+There are the other two scripts: `AWSIoTArduinoYunScp.sh` and `AWSIoTArduinoYunSetupEnvironment.sh`, which are utilized in `AWSIoTArduinoYunInstallAll.sh`. You can always use `AWSIoTArduinoYunScp.sh` to upload your new credentials to your board. When you are in the directory `AWS-IoT-Arduino-Yun-SDK/`, the command should be something like this:  
+
+    ./AWSIoTArduinoYunScp.sh <Board IP> <UserName> <Board Password> <File> <Destination> 
 
 ### Installation on Windows
 
@@ -65,8 +67,8 @@ Before proceeding to the following steps, please make sure that you have `Putty`
 1. Setup the Arduino Yún Cloud board and connect it to WiFi. Obtain its IP address and password.  
 2. Make sure your PC is connected to the same network (local IP address range).  
 3. Download the AWS IoT CA file from [here](https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem).  
-4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/certs`.  
-5. Start WinSCP and upload `AWS-IoT-Arduino-Yun-SDK/certs` folder and `AWS-IoT-Arduino-Yun-SDK/aws_iot_mqtt_client.py` to `/root` on the board.  
+4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`.  
+5. Start WinSCP and upload `AWS-IoT-Python-Runtime/` folder to `/root` on the board.  
 6. Use Putty to ssh into OpenWRT on your board and execute the following commands to install the necessary libraries:
 
 		opkg update
@@ -122,7 +124,12 @@ Start the Python runtime and set up connection for aws\_iot\_mqtt\_client object
 *MQTT\_version* - Version of MQTT protocol for this connection, either MQTTv31 (MQTT version 3.1) or MQTTv311 (MQTT version 3.1.1). Default value is MQTTv311.
 
 **Returns**  
-NONE\_ERROR if the setup on openWRT side and connection settings are correct. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if input string exceeds the internal buffer size. SET\_UP\_ERROR if the setup failed.
+NONE\_ERROR if the setup on openWRT side and connection settings are correct.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if input string exceeds the internal buffer size.  
+SET\_UP\_ERROR if the setup failed.  
+SERIAL1\_COMMUNICATION\_ERROR if there is an error in serial1 communication between the two chips.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="config"></a>
 ### IoT\_Error\_t config(char\* host, int port, char\* cafile\_path, char\* keyfile\_path, char\* certfile_path)
@@ -141,7 +148,11 @@ Configure host, port and certs location used to connect to AWS IoT. If the input
 *certfile_path* - The path of certificate file on OpenWRT. Must be a NULL-terminated string.
 
 **Returns**  
-NONE\_ERROR if the configuration is successful. CONFIG\_ERROR if the configuration failed.
+NONE\_ERROR if the configuration is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="connect"></a>
 ### IoT\_Error\_t connect(int keepalive\_interval)
@@ -157,7 +168,15 @@ Connect to AWS IoT, using user-specific keepalive setting.
 *keepalive\_interval* - amount of time for MQTT ping request interval, in seconds. Default is set to 60 seconds.
 
 **Returns**  
-NONE\_ERROR if the connect is successful. CONNECT_ERROR if the connection failed.
+NONE\_ERROR if the connect is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+CONNECT\_SSL\_ERROR if the TLS handshake failed.  
+CONNECT\_ERROR if the connection failed.  
+CONNECT\_TIMEOUT if the connection gets timeout.  
+CONNECT\_CREDENTIAL\_NOT\_FOUND if the specified credentials are not found on OpenWRT.  
+CONNECT\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="publish"></a>
 ### IoT\_Error\_t publish(char\* topic, char\* payload, int payload\_len, int qos, bool retain)
@@ -176,7 +195,15 @@ Publish a new message to the desired topic with qos and retain flag settings usi
 *retain* - retain flag.
 
 **Returns**  
-NONE\_ERROR if the publish is successful. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if topic/payload exceeds the internal buffer size. PUBLISH_ERROR if the publish failed.
+NONE\_ERROR if the publish is successful.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if topic/payload exceeds the internal buffer size.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+PUBLISH\_ERROR if the publish failed.  
+PUBLISH\_TIMEOUT if the publish gets timeout.  
+PUBLISH\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="subscribe"></a>
 ### IoT\_Error\_t subscribe(char\* topic, int qos, message_callback cb)
@@ -193,7 +220,16 @@ Subscribe to the desired topic and register a callback for new messages from thi
 *cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char*, int) to store the incoming message content and the length of the message.
 
 **Returns**  
-NONE\_ERROR if the subscribe is successful. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if topic/payload exceeds the internal buffer size. OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h. SUBSCRIBE\_ERROR if the subscribe failed.
+NONE\_ERROR if the subscribe is successful.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if topic/payload exceeds the internal buffer size.  
+OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+SUBSCRIBE\_ERROR if the subscribe failed.  
+SUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+SUBSCRIBE\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="unsubscribe"></a>
 ### IoT\_Error\_t unsubscribe(char\* topic)
@@ -208,7 +244,15 @@ Unsubscribe to the desired topic.
 *topic* - The topic to unsubscribe to. Must be a NULL-terminated string.
 
 **Returns**  
-NONE\_ERROR if the unsubscribe is successful. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if topic/payload exceeds the internal buffer size. UNSUBSCRIBE\_ERROR if the unsubscribe failed.
+NONE\_ERROR if the unsubscribe is successful.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if topic exceeds the internal buffer size.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+UNSUBSCRIBE\_ERROR if the unsubscribe failed.  
+UNSUBSCRIBE\_TIMEOUT if the unsubscribe gets timeout.  
+UNSUBSCRIBE\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="yield"></a>
 ### IoT\_Error\_t yield()
@@ -223,7 +267,9 @@ Called in the loop to check if there is a new message from all subscribed topics
 None
 
 **Returns**  
-NONE\_ERROR if the yield is successful, whether there is a new message or not. OVERFLOW\_ERROR if the new message exceeds the internal buffer size. YIELD\_ERROR if the yield failed.
+NONE\_ERROR if the yield is successful, whether there is a new message or not.  
+OVERFLOW\_ERROR if the new message exceeds the internal buffer size.  
+YIELD\_ERROR if the yield failed.
 
 <a name="disconnect"></a>
 ### IoT\_Error\_t disconnect()
@@ -238,32 +284,40 @@ Disconnect from AWS IoT.
 None
 
 **Returns**  
-NONE\_ERROR if disconnect is successful. DISCONNECT\_ERROR if the disconnect failed.
+NONE\_ERROR if disconnect is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+DISCONNECT\_ERROR if the disconnect failed.  
+DISCONNECT\_TIMEOUT if the disconnect gets timeout.  
+DISCONNECT\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_init"></a>
 ### IoT\_Error\_t shadow\_init(char\* thingName)
 **Description**  
-Initialize thing shadow configuration. Should be called before any of the thing shadow API.
+Initialize thing shadow configuration and a shadow instance with thingName. Should be called before any of the thing shadow API call for thingName shadow operations.
 
 **Syntax**
 
-	object.shadow_init("NewThingName"); // Init thing shadow configuration and set thing name for current device to "NewThingName"
+	object.shadow_init("NewThingName"); // Init thing shadow configuration and set thing name to "NewThingName"
 
 **Parameters**  
-*thingName* - Thing name for this device. Must be a NULL-terminated string.
+*thingName* - Thing name for the shadow instance to be created. Must be a NULL-terminated string.
 
 **Returns**  
-NONE\_ERROR if thing shadow is successfully initialized. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name exceeds the internal buffer size. SHADOW\_INIT\_ERROR if thing shadow initialization failed. 
+NONE\_ERROR if thing shadow is successfully initialized.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name exceeds the internal buffer size.  
+SHADOW\_INIT\_ERROR if thing shadow initialization failed.  
+GENERIC\_ERROR if an unknown error happens. 
 
 <a name="shadow_update"></a>
 ### IoT\_Error\_t shadow\_update(char\* thingName, char* payload, int payload_len, message\_callback cb, int timeout)
 **Description**  
-Update the thing shadow data in the cloud by publishing a new JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. After the feedback comes in, it will automatically unsubscribe accepted/rejected shadow topics. Frequent subscribe/unsubscribe can be slow. If no feedback is needed, users can set callback function to NULL to do a simple shadow update without subscribe/unsubscribe at a higher rate.
+Update the thing shadow data in the cloud by publishing a new JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. Subscription to accepted/rejected topics will be processed in a persistent manner and will not be unsubscribed once this API is called for this shadow.
 
 **Syntax**
 
 	object.shadow_update("UserThingName", JSON_FILE, strlen(JSON_FILE), UserCallbackFunction, 5); // update the data of "UserThingName" thing shadow in the cloud to JSON_FILE, with a timeout of 5 seconds and UserCallbackFunction as the callback function
-	object.shadow_update("UserThingName", JSON_FILE, strlen(JSON_FILE), NULL, 5); // Perform a simple shadow update regardless of feedback, this is for high rate updating
 
 **Parameters**  
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.  
@@ -274,12 +328,23 @@ Update the thing shadow data in the cloud by publishing a new JSON file onto the
 
 
 **Returns**  
-NONE\_ERROR if the shadow update request succeeds. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name/payload exceeds the internal buffer size. OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h. SHADOW\_UPDATE\_ERROR if the shadow update request failed. 
+NONE\_ERROR if the shadow update request succeeds.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name/payload exceeds the internal buffer size.  
+OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h.  
+NO\_SHADOW\_INIT\_ERROR if the shadow with thingName is initialized before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+SUBSCRIBE\_ERROR if the subscribe (accepted/rejected) failed.  
+SUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+PUBLISH\_ERROR if the publish (payload) failed.  
+PUBLISH\_TIMEOUT if the publish (payload) gets timeout.  
+SHADOW\_UPDATE\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens. 
 
 <a name="shadow_get"></a>
 ### IoT\_Error\_t shadow\_get(char\* thingName, message\_callback cb, int timeout)
 **Description**  
-Obtain the thing shadow data in the cloud by publishing an empty JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. After the feedback comes in, it will automatically unsubscribe accepted/rejected shadow topics. Thing shadow data will be available as a JSON file in the callback.
+Obtain the thing shadow data in the cloud by publishing an empty JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. Subscription to accepted/rejected topics will be processed in a persistent manner and will not be unsubscribed once this API is called for this shadow. Thing shadow data will be available as a JSON file in the callback.
 
 **Syntax**  
 
@@ -291,7 +356,18 @@ Obtain the thing shadow data in the cloud by publishing an empty JSON file onto 
 *timeout* - The maximum time to wait for feedback.  
 
 **Returns**  
-NONE\_ERROR if the shadow get request succeeds. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name exceeds the internal buffer size. OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h. SHADOW\_GET\_ERROR if the shadow get request failed.
+NONE\_ERROR if the shadow get request succeeds.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name exceeds the internal buffer size.  
+OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h.  
+NO\_SHADOW\_INIT\_ERROR if the shadow with thingName is initialized before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+SUBSCRIBE\_ERROR if the subscribe (accepted/rejected) failed.  
+SUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+PUBLISH\_ERROR if the publish (payload) failed.  
+PUBLISH\_TIMEOUT if the publish (payload) gets timeout.  
+SHADOW\_GET\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_delete"></a>
 ### IoT\_Error\_t shadow\_delete(char\* thingName, message\_callback cb, int timeout)
@@ -308,7 +384,18 @@ Delete the thing shadow data in the cloud by publishing an empty JSON file onto 
 *timeout* - The maximum time to wait for feedback.  
 
 **Returns**  
-NONE\_ERROR if the shadow delete request succeeds. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name exceeds the internal buffer size. OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h. SHADOW\_DELETE\_ERROR if the shadow delete request failed.
+NONE\_ERROR if the shadow delete request succeeds.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name exceeds the internal buffer size.  
+OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h.  
+NO\_SHADOW\_INIT\_ERROR if the shadow with thingName is initialized before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+SUBSCRIBE\_ERROR if the subscribe (accepted/rejected) failed.  
+SUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+PUBLISH\_ERROR if the publish (payload) failed.  
+PUBLISH\_TIMEOUT if the publish (payload) gets timeout.  
+SHADOW\_DELETE\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_register_delta_func"></a>
 ### IoT\_Error\_t shadow\_register\_delta\_func(char\* thingName, message\_callback cb)
@@ -324,7 +411,16 @@ Subscribe to the delta topic of the corresponding thing shadow with the given na
 *cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, int) to store the incoming message content and the length of the message.
 
 **Return**  
-NONE\_ERROR if the shadow delta topic is successfully subscribed and the callback function is successfully registered. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name exceeds the internal buffer size. OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h. SUBSCRIBE\_ERROR if the delta topic subscribe failed.
+NONE\_ERROR if the shadow delta topic is successfully subscribed and the callback function is successfully registered.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name exceeds the internal buffer size.  
+OUT\_OF\_SKETCH\_SUBSCRIBE\_MEMORY if the number of current subscribe exceeds the configured number in aws\_iot\_config\_SDK.h.  
+NO\_SHADOW\_INIT\_ERROR if the shadow with thingName is initialized before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+SUBSCRIBE\_ERROR if the subscribe (accepted/rejected) failed.  
+SUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+SHADOW\_REGISTER\_DELTA\_CALLBACK\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_unregister_delta_func"></a>
 ### IoT\_Error\_t shadow\_unregister\_delta\_func(char\* thingName)
@@ -339,7 +435,15 @@ Unsubscribe to the delta topic of the corresponding thing shadow with the given 
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.
 
 **Returns**  
-NONE\_ERROR if the shadow delta topic is successfully unsubscribed and the callback function is successfully unregistered. NULL\_VALUE\_ERROR if input parameters have NULL value. OVERFLOW\_ERROR if thing name exceeds the internal buffer size. UNSUBSCRIBE\_ERROR if the delta topic unsubscribe failed.
+NONE\_ERROR if the shadow delta topic is successfully unsubscribed and the callback function is successfully unregistered.  
+NULL\_VALUE\_ERROR if input parameters have NULL value.  
+OVERFLOW\_ERROR if thing name exceeds the internal buffer size.  
+NO\_SHADOW\_INIT\_ERROR if the shadow with thingName is initialized before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+UNSUBSCRIBE\_ERROR if the subscribe (accepted/rejected) failed.  
+UNSUBSCRIBE\_TIMEOUT if the subscribe gets timeout.  
+SHADOW\_UNREGISTER\_DELTA\_CALLBACK\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
 
 ****
 
@@ -378,7 +482,6 @@ NONE\_ERROR if the shadow delta topic is successfully unsubscribed and the callb
 	#define MAX_BUF_SIZE 256										// maximum number of bytes to publish/receive
 	#define MAX_SUB 15 												// maximum number of subscribe
 	#define CMD_TIME_OUT 100										// maximum time to wait for feedback from AR9331, 100 = 10 sec
-	#define MAX_SHADOW_TOPIC_LEN 64                                 // maximum length in bytes for shadow topic, the metadata length for shadow topic is 32, make sure your thing name length plus that does not exceed this limit
 
 **Make sure you setup the client, configure it using your configuration and connect it to AWS IoT first. Remember to use certs path macros for configuration:**
 
@@ -395,9 +498,10 @@ NONE\_ERROR if the shadow delta topic is successfully unsubscribed and the callb
       ...
     }
 
-**When you are using thing shadow API, make sure you initialize the shadow with your device thing name first:**
+**When you are using thing shadow API for a specific device shadow name, make sure you initialize the shadow with your device shadow name first:**
 
-	myClient.shadow_init(AWS_IOT_MY_THING_NAME);
+	myClient.shadow_init(AWS_IOT_MY_THING_NAME); // For shadow of this device
+	myClient.shadow_init("AnotherDevice"); // For another shadow
 
 **When you are using thing shadow API, always make sure MAX\_SUB is big enough for a thing shadow request in the loop:**
 
@@ -560,6 +664,99 @@ Please make sure to start the example sketch after the board is fully set up and
   	Once an update of the desired state for this device is received, a delta message will be received and displayed in the Serial monitor. The device will update this data into the cloud.  
   	
 	The full sketch can be found in `AWS-IoT-Arduino-Yun-Library/examples/ThingShadowEcho`.
+
+### Simple Thermostat Simulator
+This [example](https://github.com/aws/aws-iot-device-sdk-arduino-yun/tree/master/AWS-IoT-Arduino-Yun-Library/examples/ThermostatSimulatorDevice) demonstrates Arduino Yún as a device accepting instructions and syncing reported state in shadow in AWS IoT, which simulates a thermostat to control the temperature of a room. With the provided example App script, users will be able to get real-time temperature data coming from the board and be able to remotely set the desired temperature. This example also demonstrates how to retrieve shadow JSON data received on Arduino Yún Board.  
+[Eclipse Paho](https://eclipse.org/paho/clients/python/) paho-mqtt python package is used in App scripts for MQTT connections. Users can modify it to use other MQTT library according to their needs.
+
+* **Hardware Required**  
+Arduino Yún  
+Computer connected with Arduino Yún using USB serial and running example App scripts
+
+* **Software Required**  
+Tkinter for App GUI  
+Eclipse Paho paho-mqtt python package for MQTT connectivity  
+Example App script, which is included in the `ExampleAppScripts/ThermostatSimulatorApp/`  
+*Note:* You can also use [AWS IoT console](https://aws.amazon.com/iot/) to update the shadow data.
+
+* **Circuit Required**  
+None
+
+* **Attention**  
+Please make sure to start the example sketch after the board is fully set up and openWRT is up and connected to WiFi. See [here](#slowstartup).
+
+* **Getting started**  
+Before proceeding to the following steps, please make sure you have your board set up, with all codebase and credentials properly installed. Please make sure you attach the correct policy to your certificate.  
+  1. Modify your configuration file to match your own credentials and host address.  
+  2. Start the sketch when the board boots up. It should pass the initialization steps and then start to update shadow data. It should have a similar display in the serial monitor as follows:<p/>
+  <img align="center" src = "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorDevice_sketch.png"/> 
+  3. On the App side, please make sure you have [Tkinter](http://tkinter.unpythonic.net/wiki/How_to_install_Tkinter) and [Eclipse Paho paho-mqtt python package](https://pypi.python.org/pypi/paho-mqtt) pre-installed on your computer.
+  4. Copy and paste your credentials (certificate, private key and rootCA) into `ThermostatSimulatorApp/certs/`. Please make sure to keep the file names as they are downloaded and make sure the CA file name ends with `CA.crt`.  
+  5. In the directory `ThermostatSimulatorApp/`, start the App script by executing `python ThermostatSimulatorApp.py -h <YOUR HOST ADDRESS>`. You should be able to see a GUI prompt up with default reported temperature:<p/>
+  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_start.png"/>
+  6. Try to input a desired temperature and click <kbd>SET</kbd>. If it succeeds, you should be able to see the desired temperature on the panel and a log printed out in the console space. The board will start continuously syncing temperature settings:<p/>
+  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setTemp.png"/>
+  *Note:* The temperature is configured to be lower than 100 F and higher than -100 F. Error message will be printed out if there is a malformed setting:<p/>
+  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setAboveLimits.png"/><p/>
+  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setBelowLimits.png"/>
+
+* **Code**  
+	Create an instance of aws\_iot\_mqtt\_client. 
+
+		aws_iot_mqtt_client myClient;
+		
+	Create logging function for execution tracking.
+	
+		bool print_log(char* src, int len) {
+			...
+		}
+	
+  In `setup()`, open the Serial. Set the instance up and connect it to the AWS IoT. Init the shadow and register a delta callback function. All steps are tracked using logging function.
+	
+        if(print_log("setup", myClient.setup(AWS_IOT_CLIENT_ID))) {
+          if(print_log("config", myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH))) {
+            if(print_log("connect", myClient.connect())) {
+              success_connect = true;
+              print_log("shadow init", myClient.shadow_init(AWS_IOT_MY_THING_NAME));
+              print_log("register thing shadow delta function", myClient.shadow_register_delta_func(AWS_IOT_MY_THING_NAME, msg_callback_delta));
+            }
+          }
+        }
+
+  In `loop()`, simulate the behavior of a thermostat. Check to see the difference between the desired and the reported temperature. If the desired temperature is higher, increase the reported temperature by 0.1 degree per 1 second (per loop). If the desired one is lower, decrease the reported temperature by 0.1 degree per 1 second (per loop). Increase/Decrease action will happen until the reported reaches the desired. Update the reported temperature and then yield to check if there is any new delta message.
+
+        void loop() {
+          if(success_connect) {
+            if(desiredTemp - reportedTemp > 0.001) {reportedTemp += 0.1;}
+            else if(reportedTemp - desiredTemp > 0.001) {reportedTemp -= 0.1;}
+            dtostrf(reportedTemp, 4, 1, float_buf);
+            float_buf[4] = '\0';
+            sprintf(JSON_buf, "{\"state\":{\"reported\":{\"Temp\":%s}}}", float_buf);
+            print_log("shadow update", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+            if(myClient.yield()) {
+              Serial.println("Yield failed.");
+            }
+            delay(1000); // check for incoming delta per 1000 ms
+          }
+        }
+
+  For delta callback function, parse out the desired state and the desired temperature data in it. Update the desired temperature record on board so that the board knows what to do, heating or cooling.
+
+        void msg_callback_delta(char* src, int len) {
+          String data = String(src);
+          int st = data.indexOf("\"state\":") + strlen("\"state\":");
+          int ed = data.indexOf(",\"metadata\":");
+          String delta = data.substring(st, ed);
+          st = delta.indexOf("\"Temp\":") + strlen("\"Temp\":");
+          ed = delta.indexOf("}");
+          String delta_data = delta.substring(st, ed);
+          desiredTemp = delta_data.toFloat();
+        }
+        
+  Each time the board receives a new desired temperature different from its reported temperature. Changes will happen, synced into shadow and captured by the example App. Users will be able to see the whole process of temperature updating from the App side.
+
+	The full sketch can be found in `AWS-IoT-Arduino-Yun-Library/examples/ThermostatSimulatorDevice`.
+
 	
 <a name="errorcode"></a>
 ## Error code
@@ -570,20 +767,38 @@ The following error codes are defined in `AWS-IoT-Arduino-Yun-Library/aws_iot_er
 		GENERIC_ERROR = -1,
 		NULL_VALUE_ERROR = -2,
 		OVERFLOW_ERROR = -3,
-		SET_UP_ERROR = -4,
-		CONNECT_ERROR = -5,
-		PUBLISH_ERROR = -6,
-		SUBSCRIBE_ERROR = -7,
-		UNSUBSCRIBE_ERROR = -8,
-		YIELD_ERROR = -9,
-		DISCONNECT_ERROR = -10,
-		SHADOW_INIT_ERROR = -11,
-		SHADOW_UPDATE_ERROR = -12,
-		SHADOW_GET_ERROR = -13,
-		SHADOW_DELETE_ERROR = -14,
-		CONFIG_ERROR = -15,
-		OUT_OF_SKETCH_SUBSCRIBE_MEMORY = -16,
-		SERIAL1_COMMUNICATION_ERROR = -17
+		OUT_OF_SKETCH_SUBSCRIBE_MEMORY = -4,
+		SERIAL1_COMMUNICATION_ERROR = -5,
+		SET_UP_ERROR = -6,
+		NO_SET_UP_ERROR = -7,
+		WRONG_PARAMETER_ERROR = -8,
+		CONFIG_GENERIC_ERROR = -9,
+		CONNECT_SSL_ERROR = -10,
+		CONNECT_ERROR = -11,
+		CONNECT_TIMEOUT = -12,
+		CONNECT_CREDENTIAL_NOT_FOUND = -13,
+		CONNECT_GENERIC_ERROR = -14,
+		PUBLISH_ERROR = -15,
+		PUBLISH_TIMEOUT = -16,
+		PUBLISH_GENERIC_ERROR = -17,
+		SUBSCRIBE_ERROR = -18,
+		SUBSCRIBE_TIMEOUT = -19,
+		SUBSCRIBE_GENERIC_ERROR = -20,
+		UNSUBSCRIBE_ERROR = -21,
+		UNSUBSCRIBE_TIMEOUT = -22,
+		UNSUBSCRIBE_GENERIC_ERROR = -23,
+		DISCONNECT_ERROR = -24,
+		DISCONNECT_TIMEOUT = -25,
+		DISCONNECT_GENERIC_ERROR = -26,
+		SHADOW_INIT_ERROR = -27,
+		NO_SHADOW_INIT_ERROR = -28,
+		SHADOW_GET_GENERIC_ERROR = -29,
+		SHADOW_UPDATE_GENERIC_ERROR = -30,
+		SHADOW_UPDATE_INVALID_JSON_ERROR = -31,
+		SHADOW_DELETE_GENERIC_ERROR = -32,
+		SHADOW_REGISTER_DELTA_CALLBACK_GENERIC_ERROR = -33,
+		SHADOW_UNREGISTER_DELTA_CALLBACK_GENERIC_ERROR = -34,
+		YIELD_ERROR = -35
 	} IoT_Error_t;
 	
 <a name="support"></a>

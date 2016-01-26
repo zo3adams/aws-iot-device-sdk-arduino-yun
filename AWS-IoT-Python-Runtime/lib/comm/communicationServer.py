@@ -1,3 +1,4 @@
+'''
 /*
  * Copyright 2010-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -12,13 +13,22 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+ '''
 
-#ifndef version_h
-#define version_h
 
-#define VERSION_MAJOR 1
-#define VERSION_MINOR 0
-#define VERSION_PATCH 3
-#define VERSION_TAG ""
+# Base class of communicationServer that handles message traffic across a certain type of tunnel (Socket/Serial bridge)
+class communicationServer:
+    def __init__(self):
+        pass
 
-#endif
+    # Accept a message from the other side of the tunnel
+    def accept(self):
+        pass
+
+    # Other server object writes to the internal buffer of communicationServer
+    def writeToInternal(self, srcContent):
+        pass
+
+    # Upon a remote request, communicationServer write whatever is in the internal buffer to the remote client
+    def writeToExternal(self):
+        pass

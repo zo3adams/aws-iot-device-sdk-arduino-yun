@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * Copyright 2010-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License").
  * You may not use this file except in compliance with the License.
@@ -38,13 +38,12 @@ class aws_iot_mqtt_client {
 	public:
 		aws_iot_mqtt_client() {
 			timeout_flag = false;
-			ThingShadow_req_num = 0;
 			memset(rw_buf, '\0', MAX_BUF_SIZE);
 			memset(msg_buf, '\0', MAX_BUF_SIZE);
 			int i;
 			for(i = 0; i < MAX_SUB; i++) {
-                sub_group[i].ThingShadow = -1;
 				sub_group[i].is_used = false;
+				sub_group[i].is_shadow_gud = false;
 				sub_group[i].callback = NULL;
 			}
 		}
@@ -65,20 +64,20 @@ class aws_iot_mqtt_client {
 		IoT_Error_t shadow_unregister_delta_func(char* thingName);
 	private:
 		typedef struct {
-            int ThingShadow;
 			bool is_used;
+			bool is_shadow_gud; // if this is a shadow get/update/delete request
 			message_callback callback;
 		} mqtt_sub_element;
-		const char* my_client_id;
 		char rw_buf[MAX_BUF_SIZE];
 		char msg_buf[MAX_BUF_SIZE]; // To store message chunks
 		mqtt_sub_element sub_group[MAX_SUB];
 		bool timeout_flag; // Is there a timeout when executing RPC
-		unsigned int ThingShadow_req_num; // sequence number for ThingShadow request
 		IoT_Error_t base_subscribe(char* topic, int qos, message_callback cb, int is_delta);
 		Baud_t find_baud_type();
 		IoT_Error_t setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version);
 		void exec_cmd(const char* cmd, bool wait, bool single_line);
+		int find_unused_subgroup();
+		void clearProtocolOnSerialBegin(long baudrate);
 		bool is_num(char* src);
 };
 

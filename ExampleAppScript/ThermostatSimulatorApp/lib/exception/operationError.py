@@ -1,3 +1,4 @@
+'''
 /*
  * Copyright 2010-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
@@ -12,13 +13,8 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+ '''
 
-#ifndef version_h
-#define version_h
-
-#define VERSION_MAJOR 1
-#define VERSION_MINOR 0
-#define VERSION_PATCH 3
-#define VERSION_TAG ""
-
-#endif
+class operationError(Exception):
+    def __init__(self, msg="Operation Error"):
+        self.message = msg

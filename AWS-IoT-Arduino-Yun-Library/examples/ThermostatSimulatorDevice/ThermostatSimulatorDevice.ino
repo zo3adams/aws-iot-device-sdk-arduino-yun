@@ -19,6 +19,9 @@
 
 aws_iot_mqtt_client myClient;
 char JSON_buf[100];
+char float_buf[5];
+float reportedTemp = 70.0;
+float desiredTemp = 70.0;
 int cnt = 0;
 int rc = 1;
 bool success_connect = false;
@@ -46,11 +49,10 @@ void msg_callback_delta(char* src, int len) {
   int st = data.indexOf("\"state\":") + strlen("\"state\":");
   int ed = data.indexOf(",\"metadata\":");
   String delta = data.substring(st, ed);
-  String payload = "{\"state\":{\"reported\":";
-  payload += delta;
-  payload += "}}";
-  payload.toCharArray(JSON_buf, 100);
-  print_log("update thing shadow", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+  st = delta.indexOf("\"Temp\":") + strlen("\"Temp\":");
+  ed = delta.indexOf("}");
+  String delta_data = delta.substring(st, ed);
+  desiredTemp = delta_data.toFloat();
 }
 
 void setup() {
@@ -74,9 +76,17 @@ void setup() {
 
 void loop() {
   if(success_connect) {
+    // If the desired temperature is set to a higher value, start heating.
+    if(desiredTemp - reportedTemp > 0.001) {reportedTemp += 0.1;}
+    // If the desired temperature is set to a lower value, start cooling.
+    else if(reportedTemp - desiredTemp > 0.001) {reportedTemp -= 0.1;}
+    dtostrf(reportedTemp, 4, 1, float_buf);
+    float_buf[4] = '\0';
+    sprintf(JSON_buf, "{\"state\":{\"reported\":{\"Temp\":%s}}}", float_buf);
+    print_log("shadow update", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
     if(myClient.yield()) {
       Serial.println("Yield failed.");
     }
-    delay(1000); // check for incoming delta per 100 ms
+    delay(1000); // check for incoming delta per 1000 ms
   }
 }
