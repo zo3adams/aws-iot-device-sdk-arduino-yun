@@ -47,14 +47,14 @@ Baud_t aws_iot_mqtt_client::find_baud_type() {
 	return rc_type;
 }
 
-IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version) {
+IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
 	// Serial1 is started before this call
 	IoT_Error_t rc = NONE_ERROR;
 	exec_cmd("cd /root/AWS-IoT-Python-Runtime/runtime/\n", false, false);
 	exec_cmd("python run.py\n", false, false);
 
 	// Create obj
-	exec_cmd("4\n", false, false);
+	exec_cmd("5\n", false, false);
 
 	exec_cmd("i\n", false, false);
 
@@ -66,6 +66,11 @@ IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session,
 	exec_cmd(rw_buf, false, false);
 
 	sprintf(rw_buf, "%u\n", MQTT_version);
+	exec_cmd(rw_buf, false, false);
+
+	// Websocket flag
+	num_temp = useWebsocket ? 1 : 0;
+	sprintf(rw_buf, "%d\n", num_temp);
 	exec_cmd(rw_buf, true, false);
 
 	if(strncmp(rw_buf, "I T", 3) != 0) {
@@ -76,7 +81,7 @@ IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session,
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTTv_t MQTT_version) {
+IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(client_id == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(client_id) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -86,11 +91,15 @@ IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTT
 		// Communication failed due to baud rate issue
 		if(BAUD_TYPE_UNKNOWN == baud_type) {rc = SERIAL1_COMMUNICATION_ERROR;}
 		else {
-			rc = setup_exec(client_id, clean_session, MQTT_version);
+			rc = setup_exec(client_id, clean_session, MQTT_version, useWebsocket);
 		}
 	}
 
 	return rc;
+}
+
+IoT_Error_t aws_iot_mqtt_client::configWss(char* host, int port, char* cafile_path) {
+	return config(host, port, cafile_path, "", ""); // No need for key and cert, IAM credentials are used.
 }
 
 IoT_Error_t aws_iot_mqtt_client::config(char* host, int port, char* cafile_path, char* keyfile_path, char* certfile_path) {
@@ -154,6 +163,7 @@ IoT_Error_t aws_iot_mqtt_client::connect(int keepalive_interval) {
 		else if(strncmp(rw_buf, "C4F", 3) == 0) {rc = CONNECT_ERROR;}
 		else if(strncmp(rw_buf, "C5F", 3) == 0) {rc = CONNECT_TIMEOUT;}
 		else if(strncmp(rw_buf, "C6F", 3) == 0) {rc = CONNECT_CREDENTIAL_NOT_FOUND;}
+		else if(strncmp(rw_buf, "C7F", 3) == 0) {rc = WEBSOCKET_CREDENTIAL_NOT_FOUND;}
 		else if(strncmp(rw_buf, "CFF", 3) == 0) {rc = CONNECT_GENERIC_ERROR;}
 		else rc = GENERIC_ERROR;
 	}
@@ -609,10 +619,10 @@ void aws_iot_mqtt_client::exec_cmd(const char* cmd, bool wait, bool single_line)
 		timeout_flag = false;
 		timeout_sec = 0;
 		// step2: waiting
-		delay(10);
+		delay(6);
 		if(wait) {
 			while(timeout_sec < CMD_TIME_OUT && !Serial1.available()) {
-				delay(100); // 0.1 sec
+				delay(50); // 50 ms
 				timeout_sec++;
 			}
 		}
@@ -637,7 +647,6 @@ void aws_iot_mqtt_client::exec_cmd(const char* cmd, bool wait, bool single_line)
 	}
 	timeout_flag = false; // Clear timeout flag
 	rw_buf[ptr] = '\0'; // add terminator in case of garbage data in rw_buf
-	// printf("%s\n------\n", rw_buf);
 }
 
 int aws_iot_mqtt_client::find_unused_subgroup() {

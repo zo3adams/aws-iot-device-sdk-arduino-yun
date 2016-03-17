@@ -20,7 +20,8 @@ sys.path.append("./lib/")
 sys.path.append("../lib/")
 import ssl
 import time
-import paho.mqtt.client as mqtt
+import thread
+import protocol.paho.client as mqtt
 from threading import Lock
 from exception.AWSIoTExceptions import connectError
 from exception.AWSIoTExceptions import connectTimeoutException
@@ -45,6 +46,10 @@ class mqttCore:
     _unsubscribeSent = False
     _connectdisconnectTimeout = 0  # Default connect/disconnect timeout set to 0 second
     _mqttOperationTimeout = 0  # Default MQTT operation timeout set to 0 second
+    # Use websocket
+    _useWebsocket = False
+    # Subscribe record
+    _subscribePool = dict()
     # Broker information
     _host = ""
     _port = -1
@@ -76,13 +81,25 @@ class mqttCore:
     def setUserData(self, srcUserData):
         self._pahoClient.user_data_set(srcUserData)
 
-    def createPahoClient(self, clientID, cleanSession, userdata, protocol):
-        return mqtt.Client(clientID, cleanSession, userdata, protocol)  # Throw exception when error happens
+    def createPahoClient(self, clientID, cleanSession, userdata, protocol, useWebsocket):
+        return mqtt.Client(clientID, cleanSession, userdata, protocol, useWebsocket)  # Throw exception when error happens
+
+    def _doResubscribe(self):
+        if self._connectResultCode == 0:  # If this is a successful connect...
+            for key in self._subscribePool.keys():
+                qos, callback = self._subscribePool.get(key)
+                try:
+                    self.subscribe(key, qos, callback)
+                except subscribeError:
+                    pass
+                except subscribeTimeoutException:
+                    pass  # Subscribe error resulted from network error, will redo subscription in the next re-connect
 
     # Callbacks
     def on_connect(self, client, userdata, flags, rc):
         self._disconnectResultCode = sys.maxint
         self._connectResultCode = rc
+        thread.start_new_thread(self._doResubscribe, ())
         self._log.writeLog("Connect result code " + str(rc))
 
     def on_disconnect(self, client, userdata, rc):
@@ -103,18 +120,19 @@ class mqttCore:
         self._log.writeLog("Received (No custom callback registered) : message: " + str(message.payload) + " from topic: " + str(message.topic))
 
     ####### API starts here #######
-    def __init__(self, clientID, cleanSession, protocol, srcLogManager):
+    def __init__(self, clientID, cleanSession, protocol, srcLogManager, srcUseWebsocket=False):
         if clientID is None or cleanSession is None or protocol is None or srcLogManager is None:
             raise TypeError("None type inputs detected.")
         self._log = srcLogManager
         self._clientID = clientID
-        self._pahoClient = self.createPahoClient(clientID, cleanSession, None, protocol)  # User data is set to None as default
+        self._pahoClient = self.createPahoClient(clientID, cleanSession, None, protocol, srcUseWebsocket)  # User data is set to None as default
         self._log.writeLog("Paho MQTT Client init.")
         self._pahoClient.on_connect = self.on_connect
         self._pahoClient.on_disconnect = self.on_disconnect
         self._pahoClient.on_message = self.on_message
         self._pahoClient.on_subscribe = self.on_subscribe
         self._pahoClient.on_unsubscribe = self.on_unsubscribe
+        self._useWebsocket = srcUseWebsocket
         self._log.writeLog("Register Paho MQTT Client callbacks.")
         self._log.writeLog("mqttCore init.")
 
@@ -135,7 +153,10 @@ class mqttCore:
         # Return connect succeeded/failed
         ret = False
         # TLS configuration
-        self._pahoClient.tls_set(self._cafile, self._cert, self._key, ssl.CERT_REQUIRED, ssl.PROTOCOL_SSLv23)  # Throw exception...
+        if self._useWebsocket:
+            self._pahoClient.tls_set(ca_certs=self._cafile, cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_SSLv23)
+        else:
+            self._pahoClient.tls_set(self._cafile, self._cert, self._key, ssl.CERT_REQUIRED, ssl.PROTOCOL_SSLv23)  # Throw exception...
         # Connect
         self._pahoClient.connect(self._host, self._port, keepAliveInterval)  # Throw exception...
         self._pahoClient.loop_start()
@@ -215,6 +236,7 @@ class mqttCore:
         if(self._subscribeSent):
             ret = rc == 0
             if(ret):
+                self._subscribePool[topic] = (qos, callback)
                 self._log.writeLog("Subscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
             else:
                 if(callback is not None):
@@ -252,6 +274,10 @@ class mqttCore:
         if(self._unsubscribeSent):
             ret = rc == 0
             if(ret):
+                try:
+                    del self._subscribePool[topic]
+                except KeyError:
+                    pass  # Ignore topic that is never subscribed to
                 self._log.writeLog("Unsubscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
                 self._pahoClient.message_callback_remove(topic)
                 self._log.writeLog("Remove the callback.")

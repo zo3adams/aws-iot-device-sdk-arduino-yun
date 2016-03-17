@@ -47,8 +47,9 @@ class aws_iot_mqtt_client {
 				sub_group[i].callback = NULL;
 			}
 		}
-		IoT_Error_t setup(char* client_id, bool clean_session=true, MQTTv_t MQTT_version=MQTTv311);
+		IoT_Error_t setup(char* client_id, bool clean_session=true, MQTTv_t MQTT_version=MQTTv311, bool useWebsocket=false);
 		IoT_Error_t config(char* host, int port, char* cafile_path, char* keyfile_path, char* certfile_path);
+		IoT_Error_t configWss(char* host, int port, char* cafile_path);
 		IoT_Error_t connect(int keepalive_interval=60);
 		IoT_Error_t publish(char* topic, char* payload, int payload_len, int qos, bool retain);
 		IoT_Error_t subscribe(char* topic, int qos, message_callback cb);
@@ -74,7 +75,7 @@ class aws_iot_mqtt_client {
 		bool timeout_flag; // Is there a timeout when executing RPC
 		IoT_Error_t base_subscribe(char* topic, int qos, message_callback cb, int is_delta);
 		Baud_t find_baud_type();
-		IoT_Error_t setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version);
+		IoT_Error_t setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket);
 		void exec_cmd(const char* cmd, bool wait, bool single_line);
 		int find_unused_subgroup();
 		void clearProtocolOnSerialBegin(long baudrate);

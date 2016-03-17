@@ -18,6 +18,6 @@
 
 #define MAX_BUF_SIZE 256										// maximum number of bytes to publish/receive
 #define MAX_SUB 15 												// maximum number of subscribe
-#define CMD_TIME_OUT 100										// maximum time to wait for feedback from AR9331, 100 = 10 sec
+#define CMD_TIME_OUT 200										// maximum time to wait for feedback from AR9331, 200 = 10 sec
 
 #endif

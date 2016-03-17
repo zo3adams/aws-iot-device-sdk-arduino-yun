@@ -4,6 +4,7 @@ aws_iot_version		KEYWORD1
 aws_iot_config		KEYWORD1
 setup			KEYWORD2
 config			KEYWORD2
+configWss		KEYWORD2
 connect			KEYWORD2
 publish			KEYWORD2
 subscribe		KEYWORD2

@@ -17,7 +17,7 @@ The AWS-IoT-Arduino-Yún-SDK allows developers to connect their Arduino Yún com
 <a name="overview"></a>
 ## Overview
 This document provides step by step instructions to install the Arduino Yún SDK and connect your device to the AWS IoT.  
-The AWS-IoT-Arduino-Yún-SDK consists of two parts, which take use of the resources of the two chips on Arduino Yún, one for native Arduino IDE API access and the other for functionality and connections to the AWS IoT built on top of the [Eclipse Paho](https://eclipse.org/paho/clients/python/) paho-mqtt python package.
+The AWS-IoT-Arduino-Yún-SDK consists of two parts, which take use of the resources of the two chips on Arduino Yún, one for native Arduino IDE API access and the other for functionality and connections to the AWS IoT built on top of a modified [Eclipse Paho](https://eclipse.org/paho/clients/python/) paho-mqtt python package.
 ### MQTT connection
 The AWS-IoT-Arduino-Yún-SDK provides APIs to let users publish messages to AWS IoT and subscribe to MQTT topics to receive messages transmitted by other devices or coming from the broker. This allows to interact with the standard MQTT PubSub functionality of AWS IoT. More information on MQTT protocol is available [here](http://docs.aws.amazon.com/iot/latest/developerguide/protocols.html).
 ### Thing shadow
@@ -35,24 +35,31 @@ Please follow the instructions from official website: [Arduino Yún Guide](https
 ### Installation on Mac OS/Linux
 Before proceeding to the following steps, please make sure that you have `expect` installed on your computer and correctly installed the Arduino IDE.  
 To install `expect`:  
-For Ubuntu, simply run `sudo apt-get` install `expect`.  
+For Ubuntu, simply run `sudo apt-get install expect`.  
 For Mac, `expect` is installed as default.  
 For Arduino IDE installation on Linux, please visit [here](http://playground.arduino.cc/Linux/All).
 
 1. Setup the Arduino Yún board and connect it to WiFi. Obtain its IP address and password.  
 2. Make sure your computer is connected to the same network (local IP address range).  
 3. Download the AWS IoT CA file from [here](https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem).
-4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`.  
+4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`. If you are using MQTT over Websocket, you can put only your AWS IoT CA file into the directory. You should have a correctly configured AWS Identity and Access Management (IAM) role with a proper policy, and a pair of AWS Access Key and AWS Secret Access Key ID, which will be used in step 6. For more information about IAM, please visit [AWS IAM home page](https://aws.amazon.com/iam/).  
 5. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 AWSIoTArduinoYunInstallAll.sh` and execute it as `./AWSIoTArduinoYunInstallAll.sh <Board IP> <UserName> <Board Password>`. By default for Arduino Yún Board, your user name will be `root` and your password will be `arduino`.  
 	This script will upload the python runtime codebase and credentials to openWRT running on the more powerful microcontroller on you Arduino Yún board.  
 	This script will also download and install libraries for openWRT to implement the necessary scripting environment as well as communication protocols.
 
-  Step 5 can take 15-20 minutes for the device to download and install the required packages (distribute, python-openssl, pip, paho-mqtt).  
+  Step 5 can take 1-5 minutes for the device to download and install the required packages (distribute, python-openssl).  
 
   NOTE: Do NOT close the terminal before the script finishes, otherwise you have to start over with step 5. Make sure you are in your local terminal before repeating step 5.  
 
-6. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Mac OS default, it should be under `Documents/Arduino/libraries`.
-7. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE.  
+6. Optional, only for Websocket. Open a terminal, cd to `AWS-IoT-Arduino-Yun-SDK`. Do `chmod 755 AWSIoTArduinoYunWebsocketCredentialConfig.sh` and execute it as `./AWSIoTArduinoYunWebsocketCredentialConfig.sh <Board iP> <UserName> <Board Password> <AWS_ACCESS_KEY_ID_STRING> <AWS_SECRET_ACCESS_KEY_STRING>`.  
+	This script will add the given key ID and secret key onto the OpenWRT as envrionment variables `$AWS_ACCESS_KEY_ID` and `$AWS_SECRET_ACCESS_KEY`.  
+	
+	NOTE1: You can always use this script to update your IAM credentials used on the board. The script will handle the update of the environment variables for you.  
+	
+	NOTE2: Please follow the instructions on the screen after the script completes to power-cycle your board to enable all the environment changes on OpenWRT.  
+	
+7. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Mac OS default, it should be under `Documents/Arduino/libraries`.
+8. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE.  
 
 There are the other two scripts: `AWSIoTArduinoYunScp.sh` and `AWSIoTArduinoYunSetupEnvironment.sh`, which are utilized in `AWSIoTArduinoYunInstallAll.sh`. You can always use `AWSIoTArduinoYunScp.sh` to upload your new credentials to your board. When you are in the directory `AWS-IoT-Arduino-Yun-SDK/`, the command should be something like this:  
 
@@ -67,20 +74,27 @@ Before proceeding to the following steps, please make sure that you have `Putty`
 1. Setup the Arduino Yún Cloud board and connect it to WiFi. Obtain its IP address and password.  
 2. Make sure your PC is connected to the same network (local IP address range).  
 3. Download the AWS IoT CA file from [here](https://www.symantec.com/content/en/us/enterprise/verisign/roots/VeriSign-Class%203-Public-Primary-Certification-Authority-G5.pem).  
-4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`.  
+4. Put your AWS IoT CA file, private key and certificate into `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Python-Runtime/certs`. If you are using MQTT over Websocket, you can put only your AWS IoT CA file into the directory. You should have a correctly configured AWS Identity and Access Management (IAM) role with a proper policy, and a pair of AWS Access Key and AWS Secret Access Key ID, which will be used in step 7. For more information about IAM, please visit [AWS IAM home page](https://aws.amazon.com/iam/).  
 5. Start WinSCP and upload `AWS-IoT-Python-Runtime/` folder to `/root` on the board.  
 6. Use Putty to ssh into OpenWRT on your board and execute the following commands to install the necessary libraries:
 
 		opkg update
 		opkg install distribute
 		opkg install python-openssl
-		easy_install pip
-		pip install paho_mqtt
 	
-  Step 6 can take 15-20 minutes for the device to download and install the required packages.
+  It can take 1-5 minutes for the device to download and install the required packages.
+  
+7. Optional, only for Websocket. Use Putty to ssh into OpenWRT on your board and modify `/etc/profile` to include your IAM credentials as envrionment variables:  
 
-7. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Windows default, it should be under `Documents/Arduino/libraries`.  
-8. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE.
+		...
+		export AWS_ACCESS_KEY_ID=<AWS_ACCES_KEY_ID_STRING>
+		export AWS_SECRET_ACCESS_KEY=<AWS_SECRET_ACCESS_KEY_STRING>
+		...
+  
+  After that, run `source /etc/profile` and power-cycle the board to enable the changes.  
+  
+8. Copy and paste `AWS-IoT-Arduino-Yun-SDK/AWS-IoT-Arduino-Yun-Library` folder into Arduino libraries that was installed with your Arduino SDK installation. For Windows default, it should be under `Documents/Arduino/libraries`.  
+9. Restart the Arduino IDE if it was running during the installation. You should be able to see the AWS IoT examples in the Examples folder in your IDE.
 
 ****
 
@@ -93,8 +107,9 @@ Class Name:
 API:
 
 * MQTT connection  
-[IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version)](#setup)  
+[IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)](#setup)  
 [IoT\_Error\_t config(char\* host, int port, char\* cafile_path, char\* keyfile\_path, char\* certfile\_path)](#config)  
+[IoT\_Error\_t configWss(char\* host, int port, char\* cafile_path)](#configWss)  
 [IoT\_Error\_t connect(int keepalive\_interval)](#connect)  
 [IoT\_Error\_t publish(char\* topic, char\* payload, int payload\_len, int qos, bool retain)](#publish)  
 [IoT\_Error\_t subscribe(char\* topic, int qos, message\_callback cb)](#subscribe)  
@@ -110,18 +125,20 @@ API:
 [IoT\_Error\_t shadow\_unregister\_delta\_func(char\* thingName)](#shadow_unregister_delta_func)
 
 <a name="setup"></a>
-### IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version)
+### IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)
 **Description**  
 Start the Python runtime and set up connection for aws\_iot\_mqtt\_client object. Must be called before any of aws\_iot\_mqtt\_client API is called.
 
 **Syntax**  
 
 	object.setup("myClientID"); // setup a client with client_id set to "myClientID"
+	object.setup("myClientID", true, MQTTv31, true); // setup a client with client_id set to "myClientID", with clean_session set to true, using MQTT 3.1, over Websocket
 
 **Parameters**  
 *client\_id* - The client id for this connection.  
 *clean\_session* - Clear the previous connection with this id or not. Default value is true.  
-*MQTT\_version* - Version of MQTT protocol for this connection, either MQTTv31 (MQTT version 3.1) or MQTTv311 (MQTT version 3.1.1). Default value is MQTTv311.
+*MQTT\_version* - Version of MQTT protocol for this connection, either MQTTv31 (MQTT version 3.1) or MQTTv311 (MQTT version 3.1.1). Default value is MQTTv311.  
+*useWebsocket* - Enable the use of Websocket or not. Default value is false. IAM credentials must be included in the environment variables on OpenWRT to make a successful MQTT connection over Websocket.  
 
 **Returns**  
 NONE\_ERROR if the setup on openWRT side and connection settings are correct.  
@@ -154,6 +171,27 @@ WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enoug
 CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
 GENERIC\_ERROR if an unknown error happens.
 
+<a name="configWss"></a>
+### IoT\_Error\_t configWss(char\* host, int port, char\* cafile\_path)
+**Description**  
+Configure host, port and rootCA location used to connect to AWS IoT over Websocket. If the input strings for host and cafile\_path are set to NULL, the default value will be used to connect. Must be called to load user settings right after `aws_iot_mqtt_client::setup` and before connect. The client must be configured in setup to use Websocket.
+
+**Syntax**
+
+	object.configWss("example.awsamazon.com", 1234, "./cafile");
+	
+**Parameters**  
+*host* - The endpoint to connect to. Must be a NULL-terminated string.  
+*port* - The port number to connect to.  
+*cafile_path* - The path of CA file on OpenWRT. Must be a NULL-terminated string.  
+
+**Returns**  
+NONE\_ERROR if the configuration is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
+
 <a name="connect"></a>
 ### IoT\_Error\_t connect(int keepalive\_interval)
 **Description**  
@@ -175,6 +213,7 @@ CONNECT\_SSL\_ERROR if the TLS handshake failed.
 CONNECT\_ERROR if the connection failed.  
 CONNECT\_TIMEOUT if the connection gets timeout.  
 CONNECT\_CREDENTIAL\_NOT\_FOUND if the specified credentials are not found on OpenWRT.  
+WEBSOCKET\_CREDENTIAL\_NOT\_FOUND if the IAM credentials do not exist as environment variables on OpenWRT.  
 CONNECT\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
 GENERIC\_ERROR if an unknown error happens.
 
@@ -458,7 +497,7 @@ GENERIC\_ERROR if an unknown error happens.
 
 	//===============================================================
 	#define AWS_IOT_MQTT_HOST "data.iot.us-east-1.amazonaws.com" 	// your endpoint
-	#define AWS_IOT_MQTT_PORT 8883									// your port
+	#define AWS_IOT_MQTT_PORT 8883									// your port, use 443 for MQTT over Websocket
 	#define AWS_IOT_CLIENT_ID	"My_ClientID"						// your client ID
 	#define AWS_IOT_MY_THING_NAME "My_Board"						// your thing name
 	#define AWS_IOT_ROOT_CA_FILENAME "aws-iot-rootCA.crt"           // your root-CA filename
@@ -481,13 +520,15 @@ GENERIC\_ERROR if an unknown error happens.
 
 	#define MAX_BUF_SIZE 256										// maximum number of bytes to publish/receive
 	#define MAX_SUB 15 												// maximum number of subscribe
-	#define CMD_TIME_OUT 100										// maximum time to wait for feedback from AR9331, 100 = 10 sec
+	#define CMD_TIME_OUT 200										// maximum time to wait for feedback from AR9331, 200 = 10 sec
 
 **Make sure you setup the client, configure it using your configuration and connect it to AWS IoT first. Remember to use certs path macros for configuration:**
 
     aws_iot_mqtt_client myClient;
     myClient.setup(AWS_IOT_CLIENT_ID);
+    // myClient.setup(AWS_IOT_CLIENT_ID, true, MQTTv31, true); // Use Websocket
     myClient.config(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH, AWS_IOT_PRIVATE_KEY_PATH, AWS_IOT_CERTIFICATE_PATH);
+    // myClient.configWss(AWS_IOT_MQTT_HOST, AWS_IOT_MQTT_PORT, AWS_IOT_ROOT_CA_PATH); // Use Websocket
     myClient.connnect();
 
 **Remember to check incoming messages in a loop**:
@@ -608,7 +649,7 @@ Arduino Yún
 Computer connected with Arduino Yún using USB serial
 
 * **Software Required**  
-App-side code that updates the state of the corresponding thing shadow in the cloud
+App-side code that updates the state of the corresponding thing shadow in the cloud  
 *Note:* You can also use [AWS IoT console](https://aws.amazon.com/iot/) to update the shadow data.
 
 * **Circuit Required**  
@@ -695,7 +736,7 @@ Before proceeding to the following steps, please make sure you have your board s
   5. In the directory `ThermostatSimulatorApp/`, start the App script by executing `python ThermostatSimulatorApp.py -h <YOUR HOST ADDRESS>`. You should be able to see a GUI prompt up with default reported temperature:<p/>
   <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_start.png"/>
   6. Try to input a desired temperature and click <kbd>SET</kbd>. If it succeeds, you should be able to see the desired temperature on the panel and a log printed out in the console space. The board will start continuously syncing temperature settings:<p/>
-  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setTemp.png"/>
+  <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setTemp.png"/>  
   *Note:* The temperature is configured to be lower than 100 F and higher than -100 F. Error message will be printed out if there is a malformed setting:<p/>
   <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setAboveLimits.png"/><p/>
   <img align="center" src= "https://s3.amazonaws.com/aws-iot-device-sdk-arduino-yun-suppliemental/images/ThermostatSimulatorApp_setBelowLimits.png"/>
@@ -798,7 +839,8 @@ The following error codes are defined in `AWS-IoT-Arduino-Yun-Library/aws_iot_er
 		SHADOW_DELETE_GENERIC_ERROR = -32,
 		SHADOW_REGISTER_DELTA_CALLBACK_GENERIC_ERROR = -33,
 		SHADOW_UNREGISTER_DELTA_CALLBACK_GENERIC_ERROR = -34,
-		YIELD_ERROR = -35
+		YIELD_ERROR = -35,
+		WEBSOCKET_CREDENTIAL_NOT_FOUND = -36
 	} IoT_Error_t;
 	
 <a name="support"></a>

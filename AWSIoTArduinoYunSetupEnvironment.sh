@@ -16,7 +16,7 @@ set RemoteEndpoint "$ArduinoYunUserName@$ArduinoYunIPAddress"
 send_user "Arduino Yun IP is: $ArduinoYunIPAddress\n"
 send_user "Arduino Yun User Name is: $ArduinoYunUserName\n"
 send_user "\nThe following dependencies will be remotely installed on Arduino Yun:\n"
-send_user "distribute\npython-openssl\npip\npaho-mqtt\n\n"
+send_user "distribute\npython-openssl\n\n"
 send_user "Please wait until the installation completes and the program exits.\n\n"
 
 # ssh into Arduino Yun and automatically perform the installation
@@ -33,8 +33,6 @@ expect {
 expect "*~#" { send "opkg update\r" }
 expect "*~#" { send "opkg install distribute\r" }
 expect "*~#" { send "opkg install python-openssl\r" }
-expect "*~#" { send "easy_install pip\r" }
-expect "*~#" { send "pip install paho-mqtt\r" }
 expect "*~#" { send "exit\r" }
 # End of installation
 interact

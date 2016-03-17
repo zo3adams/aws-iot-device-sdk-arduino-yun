@@ -1,3 +1,20 @@
+'''
+/*
+ * Copyright 2010-2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License").
+ * You may not use this file except in compliance with the License.
+ * A copy of the License is located at
+ *
+ *  http://aws.amazon.com/apache2.0
+ *
+ * or in the "license" file accompanying this file. This file is distributed
+ * on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+ '''
+
 import sys
 sys.path.append("../lib/")
 from util.logManager import logManager
@@ -20,7 +37,7 @@ from command.commandShadowRegisterDeltaCallback import *
 from command.commandShadowUnregisterDeltaCallback import *
 from command.commandYield import *
 from command.commandLockSize import *
-from paho.mqtt.client import *
+from protocol.paho.client import *
 # import traceback
 
 
@@ -106,14 +123,15 @@ class runtimeHub:
             # MQTT init
             if srcProtocolMessage[0] == "i":
                 retCommand = AWSIoTCommand.AWSIoTCommand("i")
-                if len(srcProtocolMessage[1:]) == 3:
+                if len(srcProtocolMessage[1:]) == 4:
                     clientID = srcProtocolMessage[1]
                     cleanSession = srcProtocolMessage[2] == "1"
                     protocol = MQTTv31
                     if srcProtocolMessage[3] == "4":
                         protocol = MQTTv311
+                    useWebsocket = srcProtocolMessage[4] == "1"
                     try:
-                        self._mqttCoreHub = mqttCore(clientID, cleanSession, protocol, self._logManagerHub)
+                        self._mqttCoreHub = mqttCore(clientID, cleanSession, protocol, self._logManagerHub, useWebsocket)
                         self._mqttCoreHub.setConnectDisconnectTimeoutSecond(10)
                         self._mqttCoreHub.setMQTTOperationTimeoutSecond(5)
                     except TypeError:

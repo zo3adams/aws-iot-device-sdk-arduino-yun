@@ -1,3 +1,15 @@
+# 1.1.0 (March 8, 2016)
+Features:
+
+* Added support for MQTT over Websocket using AWS Identity and Access Management (IAM)
+* Added new API for MQTT Websocket configuration
+* Added support for auto-reconnect for MQTT over Websocket
+* Added support for auto-resubscribe
+
+Bugfixes/Improvements:
+
+N/A
+
 # 1.0.3 (January 22, 2016)
 Features:
 

@@ -75,3 +75,14 @@ class subscribeError(operationError.operationError):
 class unsubscribeError(operationError.operationError):
     def __init__(self, errorCode):
         self.message = "Unsubscribe Error: " + str(errorCode)
+
+
+# Websocket Error
+class wssNoKeyInEnvironmentError(operationError.operationError):
+    def __init__(self):
+        self.message = "No AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY detected in $ENV."
+
+
+class wssHandShakeError(operationError.operationError):
+    def __init__(self):
+        self.message = "Error in WSS handshake."

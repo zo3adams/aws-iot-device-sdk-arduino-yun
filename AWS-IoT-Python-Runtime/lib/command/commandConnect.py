@@ -55,6 +55,8 @@ class commandConnect(AWSIoTCommand.AWSIoTCommand):
                 returnMessage = "C5F: " + str(e.message)
             except IOError as e:
                 returnMessage = "C6F: " + "Credentials not found."
+            except ValueError as e:
+                returnMessage = "C7F: " + "Key/KeyID not in $ENV."
             except Exception as e:
                 returnMessage = "CFF: " + "Unknown error."
         self._serialCommServerHandler.writeToInternalProtocol(returnMessage)
