@@ -500,6 +500,9 @@ class Client(object):
         self._tls_version = tls_version
         self._tls_insecure = False
         self._useSecuredWebsocket = useSecuredWebsocket  # Do we enable secured websocket
+        self._subscribePool = dict()
+        self._resubDone = True
+        self._resubDoneMutex = threading.Lock()
 
     def __del__(self):
         pass
@@ -918,7 +921,7 @@ class Client(object):
             message.retain = retain
             message.dup = False
 
-            self._out_message_mutex.acquire()
+            self._out_message_mutex.acquire()                
             self._out_messages.append(message)
             if self._max_inflight_messages == 0 or self._inflight_messages < self._max_inflight_messages:
                 self._inflight_messages = self._inflight_messages+1
@@ -1015,12 +1018,14 @@ class Client(object):
             if topic is None or len(topic) == 0:
                 raise ValueError('Invalid topic.')
             topic_qos_list = [(topic.encode('utf-8'), qos)]
+            self._subscribePool[topic] = qos
         elif isinstance(topic, tuple):
             if topic[1]<0 or topic[1]>2:
                 raise ValueError('Invalid QoS level.')
             if topic[0] is None or len(topic[0]) == 0 or not isinstance(topic[0], str):
                 raise ValueError('Invalid topic.')
             topic_qos_list = [(topic[0].encode('utf-8'), topic[1])]
+            self._subscribePool[topic[0]] = topic[1]
         elif isinstance(topic, list):
             topic_qos_list = []
             for t in topic:
@@ -1029,6 +1034,7 @@ class Client(object):
                 if t[0] is None or len(t[0]) == 0 or not isinstance(t[0], str):
                     raise ValueError('Invalid topic.')
                 topic_qos_list.append((t[0].encode('utf-8'), t[1]))
+                self._subscribePool[t[0]] = t[1]
 
         if topic_qos_list is None:
             raise ValueError("No topic specified, or incorrect topic type.")
@@ -1061,12 +1067,14 @@ class Client(object):
             if len(topic) == 0:
                 raise ValueError('Invalid topic.')
             topic_list = [topic.encode('utf-8')]
+            self._subscribePool.pop(topic, None)
         elif isinstance(topic, list):
             topic_list = []
             for t in topic:
                 if len(t) == 0 or not isinstance(t, str):
                     raise ValueError('Invalid topic.')
                 topic_list.append(t.encode('utf-8'))
+                self._subscribePool.pop(t, None)
 
         if topic_list is None:
             raise ValueError("No topic specified, or incorrect topic type.")
@@ -1517,7 +1525,6 @@ class Client(object):
 
     def _packet_write(self):
         self._current_out_packet_mutex.acquire()
-
         while self._current_out_packet:
             packet = self._current_out_packet
 
@@ -1748,7 +1755,15 @@ class Client(object):
             else:
                 raise TypeError('payload must be a string, unicode or a bytearray.')
 
-        return self._packet_queue(PUBLISH, packet, mid, qos)
+        # Check if the publish needs to wait because of an on-going re-subscription
+        rc = MQTT_ERR_SUCCESS
+        self._resubDoneMutex.acquire()
+        if self._resubDone:
+            rc = self._packet_queue(PUBLISH, packet, mid, qos)
+        # If we are still waiting for SUBACK for re-subscription, do NOT add to packet queue
+        self._resubDoneMutex.release()
+
+        return rc
 
     def _send_pubrec(self, mid):
         self._easy_log(MQTT_LOG_DEBUG, "Sending PUBREC (Mid: "+str(mid)+")")
@@ -1828,7 +1843,7 @@ class Client(object):
     def _send_disconnect(self):
         return self._send_simple_command(DISCONNECT)
 
-    def _send_subscribe(self, dup, topics):
+    def _send_subscribe(self, dup, topics, force=False):
         remaining_length = 2
         for t in topics:
             remaining_length = remaining_length + 2+len(t[0])+1
@@ -1842,7 +1857,11 @@ class Client(object):
         for t in topics:
             self._pack_str16(packet, t[0])
             packet.extend(struct.pack("B", t[1]))
-        return (self._packet_queue(command, packet, local_mid, 1), local_mid)
+        if force:
+            self._resubDoneMutex.acquire()
+            self._resubDone = False  # Should wait for SUBACK for re-subscription
+            self._resubDoneMutex.release()
+        return (self._packet_queue(command, packet, local_mid, 1, force), local_mid)
 
     def _send_unsubscribe(self, dup, topics):
         remaining_length = 2
@@ -1923,7 +1942,7 @@ class Client(object):
         self._messages_reconnect_reset_out()
         self._messages_reconnect_reset_in()
 
-    def _packet_queue(self, command, packet, mid, qos):
+    def _packet_queue(self, command, packet, mid, qos, force=False):
         mpkt = dict(
             command = command,
             mid = mid,
@@ -1933,7 +1952,12 @@ class Client(object):
             packet = packet)
 
         self._out_packet_mutex.acquire()
-        self._out_packet.append(mpkt)
+        if force:  # Forced to be the first
+            self._current_out_packet = None  # Reset the current out packet
+            self._out_packet = []
+            self._out_packet.insert(0, mpkt)  # Put it as the first one in the packet_queue
+        else:
+            self._out_packet.append(mpkt)
         if self._current_out_packet_mutex.acquire(False):
             if self._current_out_packet is None and len(self._out_packet) > 0:
                 self._current_out_packet = self._out_packet.pop(0)
@@ -2034,13 +2058,26 @@ class Client(object):
                 self.on_connect(self, self._userdata, flags_dict, result)
             self._in_callback = False
         self._callback_mutex.release()
+
+        #  Resubscribe
+        if result == 0:
+            subList = list()
+            for key in self._subscribePool.keys():
+                currentTuple = (key, self._subscribePool.get(key))
+                subList.append(currentTuple)
+            if subList:  # If we need to re-subscribe...
+                self._send_subscribe(False, subList, True)  # Forced to subscribe first
+                rc = self.loop_write()
+                if rc != 0:
+                    return rc  # Never block loop I/O when there is an error
+
         if result == 0:
             rc = 0
             self._out_message_mutex.acquire()
             for m in self._out_messages:
                 m.timestamp = time.time()
                 if m.state == mqtt_ms_queued:
-                    self.loop_write() # Process outgoing messages that have just been queued up
+                    self.loop_write()  # Process outgoing messages that have just been queued up
                     self._out_message_mutex.release()
                     return MQTT_ERR_SUCCESS
 
@@ -2089,6 +2126,9 @@ class Client(object):
             return MQTT_ERR_PROTOCOL
 
     def _handle_suback(self):
+        self._resubDoneMutex.acquire()
+        self._resubDone = True
+        self._resubDoneMutex.release()
         self._easy_log(MQTT_LOG_DEBUG, "Received SUBACK")
         pack_format = "!H" + str(len(self._in_packet['packet'])-2) + 's'
         (mid, packet) = struct.unpack(pack_format, self._in_packet['packet'])

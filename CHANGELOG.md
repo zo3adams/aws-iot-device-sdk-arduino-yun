@@ -1,3 +1,12 @@
+# 1.1.1 (March 23rd, 2016)
+Features:  
+
+N/A
+
+Bugfixes/Improvements:
+
+* Improved auto-resubscribe logic. Guaranteed that re-subscribe requests get out and acked before any of the publish requests of the queued messages
+
 # 1.1.0 (March 8, 2016)
 Features:
 

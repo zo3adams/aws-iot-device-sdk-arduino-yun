@@ -20,7 +20,6 @@ sys.path.append("./lib/")
 sys.path.append("../lib/")
 import ssl
 import time
-import thread
 import protocol.paho.client as mqtt
 from threading import Lock
 from exception.AWSIoTExceptions import connectError
@@ -48,8 +47,6 @@ class mqttCore:
     _mqttOperationTimeout = 0  # Default MQTT operation timeout set to 0 second
     # Use websocket
     _useWebsocket = False
-    # Subscribe record
-    _subscribePool = dict()
     # Broker information
     _host = ""
     _port = -1
@@ -84,22 +81,10 @@ class mqttCore:
     def createPahoClient(self, clientID, cleanSession, userdata, protocol, useWebsocket):
         return mqtt.Client(clientID, cleanSession, userdata, protocol, useWebsocket)  # Throw exception when error happens
 
-    def _doResubscribe(self):
-        if self._connectResultCode == 0:  # If this is a successful connect...
-            for key in self._subscribePool.keys():
-                qos, callback = self._subscribePool.get(key)
-                try:
-                    self.subscribe(key, qos, callback)
-                except subscribeError:
-                    pass
-                except subscribeTimeoutException:
-                    pass  # Subscribe error resulted from network error, will redo subscription in the next re-connect
-
     # Callbacks
     def on_connect(self, client, userdata, flags, rc):
         self._disconnectResultCode = sys.maxint
         self._connectResultCode = rc
-        thread.start_new_thread(self._doResubscribe, ())
         self._log.writeLog("Connect result code " + str(rc))
 
     def on_disconnect(self, client, userdata, rc):
@@ -236,7 +221,6 @@ class mqttCore:
         if(self._subscribeSent):
             ret = rc == 0
             if(ret):
-                self._subscribePool[topic] = (qos, callback)
                 self._log.writeLog("Subscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
             else:
                 if(callback is not None):
@@ -274,10 +258,6 @@ class mqttCore:
         if(self._unsubscribeSent):
             ret = rc == 0
             if(ret):
-                try:
-                    del self._subscribePool[topic]
-                except KeyError:
-                    pass  # Ignore topic that is never subscribed to
                 self._log.writeLog("Unsubscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
                 self._pahoClient.message_callback_remove(topic)
                 self._log.writeLog("Remove the callback.")
