@@ -1,3 +1,12 @@
+# 1.1.2 (April 1st, 2016)
+Features:  
+
+N/A
+
+Bugfixes/Improvements:
+
+* Removing the executable bit set on all files 
+
 # 1.1.1 (March 23rd, 2016)
 Features:  
 
