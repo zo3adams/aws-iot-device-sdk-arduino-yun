@@ -27,6 +27,7 @@
 #define MAX_NUM_PARA 6 // Maximum number of parameters in protocol communication
 #define NUM_ATTEMPT_BEFORE_EXIT MAX_NUM_PARA/2+1 // Number of '~' to fully exit the protocol command
 const char* OUT_OF_BUFFER_ERR_MSG = "OUT OF BUFFER SIZE";
+const char* EMPTY_STRING = "";
 
 // Choose different baudrate for different version of openWRT OS
 Baud_t aws_iot_mqtt_client::find_baud_type() {
@@ -47,7 +48,7 @@ Baud_t aws_iot_mqtt_client::find_baud_type() {
 	return rc_type;
 }
 
-IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
+IoT_Error_t aws_iot_mqtt_client::setup_exec(const char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
 	// Serial1 is started before this call
 	IoT_Error_t rc = NONE_ERROR;
 	exec_cmd("cd /root/AWS-IoT-Python-Runtime/runtime/\n", false, false);
@@ -81,7 +82,7 @@ IoT_Error_t aws_iot_mqtt_client::setup_exec(char* client_id, bool clean_session,
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
+IoT_Error_t aws_iot_mqtt_client::setup(const char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(client_id == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(client_id) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -98,11 +99,11 @@ IoT_Error_t aws_iot_mqtt_client::setup(char* client_id, bool clean_session, MQTT
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::configWss(char* host, int port, char* cafile_path) {
+IoT_Error_t aws_iot_mqtt_client::configWss(const char* host, unsigned int port, const char* cafile_path) {
 	return config(host, port, cafile_path, "", ""); // No need for key and cert, IAM credentials are used.
 }
 
-IoT_Error_t aws_iot_mqtt_client::config(char* host, int port, char* cafile_path, char* keyfile_path, char* certfile_path) {
+IoT_Error_t aws_iot_mqtt_client::config(const char* host, unsigned int port, const char* cafile_path, const char* keyfile_path, const char* certfile_path) {
 	IoT_Error_t rc = NONE_ERROR;
 
 	if(host != NULL && strlen(host) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -147,7 +148,34 @@ IoT_Error_t aws_iot_mqtt_client::config(char* host, int port, char* cafile_path,
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::connect(int keepalive_interval) {
+IoT_Error_t aws_iot_mqtt_client::configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond) {
+	IoT_Error_t rc = NONE_ERROR;
+
+	exec_cmd("4\n", false, false);
+
+	exec_cmd("bf\n", false, false);
+
+	sprintf(rw_buf, "%d\n", baseReconnectQuietTimeSecond);
+	exec_cmd(rw_buf, false, false);
+
+	sprintf(rw_buf, "%d\n", maxReconnectQuietTimeSecond);
+	exec_cmd(rw_buf, false, false);
+
+	sprintf(rw_buf, "%d\n", stableConnectionTimeSecond);
+	exec_cmd(rw_buf, true, false);
+
+	if(strncmp(rw_buf, "BF T", 4) != 0) {
+		if(strncmp(rw_buf, "BF1F", 4) == 0) {rc = NO_SET_UP_ERROR;}
+		else if(strncmp(rw_buf, "BF2F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "BF3F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "BFFF", 4) == 0) {rc = CONFIG_GENERIC_ERROR;}
+		else rc = GENERIC_ERROR;
+	}
+
+	return rc;
+}
+
+IoT_Error_t aws_iot_mqtt_client::connect(unsigned int keepalive_interval) {
 	IoT_Error_t rc = NONE_ERROR;
 	exec_cmd("2\n", false, false);
 
@@ -171,7 +199,7 @@ IoT_Error_t aws_iot_mqtt_client::connect(int keepalive_interval) {
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::publish(char* topic, char* payload, int payload_len, int qos, bool retain) {
+IoT_Error_t aws_iot_mqtt_client::publish(const char* topic, const char* payload, unsigned int payload_len, unsigned int qos, bool retain) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(topic == NULL || payload == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(topic) >= MAX_BUF_SIZE || payload_len >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -205,7 +233,7 @@ IoT_Error_t aws_iot_mqtt_client::publish(char* topic, char* payload, int payload
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::subscribe(char* topic, int qos, message_callback cb) {
+IoT_Error_t aws_iot_mqtt_client::subscribe(const char* topic, unsigned int qos, message_callback cb) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(topic == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(topic) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -245,7 +273,7 @@ IoT_Error_t aws_iot_mqtt_client::subscribe(char* topic, int qos, message_callbac
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::unsubscribe(char* topic) {
+IoT_Error_t aws_iot_mqtt_client::unsubscribe(const char* topic) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(topic == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(topic) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -304,7 +332,7 @@ IoT_Error_t aws_iot_mqtt_client::yield() {
 			if(p != NULL) {
 			  	int ino_id = is_num(p) ? atoi(p) : -1;
 			    size_t id_len = strlen(p);
-			    p = strtok_r(NULL, " ", &saveptr); // more chunk?
+			    p = strtok_r(NULL, " ", &saveptr); // more chunks?
 			    if(p != NULL) {
 			      	int more = is_num(p) ? atoi(p) : -1;
 			      	if(more != 1 && more != 0) { // broken protocol
@@ -327,10 +355,25 @@ IoT_Error_t aws_iot_mqtt_client::yield() {
                                 // User callback
                                 if(sub_group[ino_id].callback != NULL) {
 									if(rc == NONE_ERROR) {
-										sub_group[ino_id].callback(msg_buf, (int)strlen(msg_buf));
+										if(sub_group[ino_id].is_shadow_gud) {
+											// See if it is timeout
+											if(strncmp(msg_buf, "JSON-X", 6) == 0) {sub_group[ino_id].callback(msg_buf, (unsigned int)strlen(msg_buf), STATUS_SHADOW_TIMEOUT);}
+											else {
+												// See if it is accepted/rejected
+												// Delta is treated as normal MQTT messages
+												int type_num = atoi(msg_buf+5);
+												if(type_num%3 == 0) {sub_group[ino_id].callback(msg_buf, (unsigned int)strlen(msg_buf), STATUS_SHADOW_ACCEPTED);} // accepted
+												else if(type_num%3 == 1) {sub_group[ino_id].callback(msg_buf, (unsigned int)strlen(msg_buf), STATUS_SHADOW_REJECTED);} // rejected
+												else {
+													rc = YIELD_ERROR;
+													break;
+												}
+											}
+										}
+										else {sub_group[ino_id].callback(msg_buf, (unsigned int)strlen(msg_buf), STATUS_NORMAL);}
 									}
 									if(rc == OVERFLOW_ERROR) {
-										sub_group[ino_id].callback((char*)OUT_OF_BUFFER_ERR_MSG, (int)strlen(OUT_OF_BUFFER_ERR_MSG));
+										sub_group[ino_id].callback((char*)OUT_OF_BUFFER_ERR_MSG, (unsigned int)strlen(OUT_OF_BUFFER_ERR_MSG), STATUS_MESSAGE_OVERFLOW);
 									}
 								}
 								// always free the shadow slot and recover the context
@@ -377,7 +420,7 @@ IoT_Error_t aws_iot_mqtt_client::disconnect() {
 }
 
 // DeviceShadow-support API
-IoT_Error_t aws_iot_mqtt_client::shadow_init(char* thingName) {
+IoT_Error_t aws_iot_mqtt_client::shadow_init(const char* thingName) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -399,7 +442,7 @@ IoT_Error_t aws_iot_mqtt_client::shadow_init(char* thingName) {
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::shadow_register_delta_func(char* thingName, message_callback cb) {
+IoT_Error_t aws_iot_mqtt_client::shadow_register_delta_func(const char* thingName, message_callback cb) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -434,7 +477,7 @@ IoT_Error_t aws_iot_mqtt_client::shadow_register_delta_func(char* thingName, mes
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::shadow_unregister_delta_func(char* thingName) {
+IoT_Error_t aws_iot_mqtt_client::shadow_unregister_delta_func(const char* thingName) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -470,7 +513,7 @@ IoT_Error_t aws_iot_mqtt_client::shadow_unregister_delta_func(char* thingName) {
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::shadow_get(char* thingName, message_callback cb, int timeout) {
+IoT_Error_t aws_iot_mqtt_client::shadow_get(const char* thingName, message_callback cb, unsigned int timeout) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -512,7 +555,7 @@ IoT_Error_t aws_iot_mqtt_client::shadow_get(char* thingName, message_callback cb
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::shadow_update(char* thingName, char* payload, int payload_len, message_callback cb, int timeout) {
+IoT_Error_t aws_iot_mqtt_client::shadow_update(const char* thingName, const char* payload, unsigned int payload_len, message_callback cb, unsigned int timeout) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL || payload == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE || payload_len >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -558,7 +601,7 @@ IoT_Error_t aws_iot_mqtt_client::shadow_update(char* thingName, char* payload, i
 	return rc;
 }
 
-IoT_Error_t aws_iot_mqtt_client::shadow_delete(char* thingName, message_callback cb, int timeout) {
+IoT_Error_t aws_iot_mqtt_client::shadow_delete(const char* thingName, message_callback cb, unsigned int timeout) {
 	IoT_Error_t rc = NONE_ERROR;
 	if(thingName == NULL) {rc = NULL_VALUE_ERROR;}
 	else if(strlen(thingName) >= MAX_BUF_SIZE) {rc = OVERFLOW_ERROR;}
@@ -595,6 +638,103 @@ IoT_Error_t aws_iot_mqtt_client::shadow_delete(char* thingName, message_callback
 			}
 		}
 		else {rc = OUT_OF_SKETCH_SUBSCRIBE_MEMORY;}
+	}
+	return rc;
+}
+
+// Send a request for a certain value according to key names and JSON identifier
+// Value coming back will be stored in an external buffer as a string provided by the user
+// desired
+IoT_Error_t aws_iot_mqtt_client::getDesiredValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize) {
+	return getJSONValueLoop(JSONIdentifier, key, externalJSONBuf, bufSize, DESIRED_SECTION);
+}
+
+// reported
+IoT_Error_t aws_iot_mqtt_client::getReportedValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize) {
+	return getJSONValueLoop(JSONIdentifier, key, externalJSONBuf, bufSize, REPORTED_SECTION);
+}
+
+// delta
+IoT_Error_t aws_iot_mqtt_client::getDeltaValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize) {
+	return getJSONValueLoop(JSONIdentifier, key, externalJSONBuf, bufSize, DELTA_SECTION);
+}
+
+// general
+IoT_Error_t aws_iot_mqtt_client::getValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize) {
+	return getJSONValueLoop(JSONIdentifier, key, externalJSONBuf, bufSize, GENERAL_SECTION);
+}
+
+IoT_Error_t aws_iot_mqtt_client::getJSONValueLoop(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize, KV_access_t accessType) {
+	IoT_Error_t rc = NONE_ERROR;
+	int chunk_cnt = 0;
+	while(true) {
+		exec_cmd("4\n", false, false);
+
+		exec_cmd("j\n", false, false);
+		
+		sprintf(rw_buf, "%s\n", JSONIdentifier);
+		exec_cmd(rw_buf, false, false);
+
+		switch(accessType) {
+			case DESIRED_SECTION:
+				sprintf(rw_buf, "state\"desired\"%s\n", key);
+				break;
+			case REPORTED_SECTION:
+				sprintf(rw_buf, "state\"reported\"%s\n", key);
+				break;
+			case DELTA_SECTION:
+				sprintf(rw_buf, "state\"%s\n", key);
+				break;
+			case GENERAL_SECTION:
+				sprintf(rw_buf, "%s\n", key);
+				break;
+			default:
+				sprintf(rw_buf, "%s\n", key);
+		}
+		exec_cmd(rw_buf, false, false);
+
+		int isFirst = chunk_cnt == 0 ? 1 : 0;
+		chunk_cnt++;
+		if(isFirst == 1) {sprintf(externalJSONBuf, "%s", "");} // Clear the external buffer
+		sprintf(rw_buf, "%d\n", isFirst);
+		exec_cmd(rw_buf, true, false);
+
+		if(strncmp(rw_buf, "J F", 3) == 0) {break;} // End of JSON value string transmission
+		else if(strncmp(rw_buf, "J1F", 3) == 0) {
+			rc = NO_SET_UP_ERROR;
+			break;
+		}
+		else if(strncmp(rw_buf, "J2F", 3) == 0) {
+			rc = JSON_FILE_NOT_FOUND;
+			break;
+		}
+		else if(strncmp(rw_buf, "J3F", 3) == 0) {
+			rc = JSON_KEY_NOT_FOUND;
+			break;
+		}
+		else if(strncmp(rw_buf, "JFF", 3) == 0) {
+			rc = JSON_GENERIC_ERROR;
+			break;
+		}
+		else if(rw_buf[0] != 'J') {
+			rc = GENERIC_ERROR;
+			break;
+		}
+		// Accumulate the incoming JSON chunks below this line
+		char* saveptr, *p;
+		p = strtok_r(rw_buf, " ", &saveptr); // J
+		p += (strlen(p) + 1); // Get the rest of the JSON chunk
+		if(p != NULL) {
+			if(strlen(p) + strlen(externalJSONBuf) > bufSize) {
+				rc = OVERFLOW_ERROR;
+				break;
+			}
+			else {strcat(externalJSONBuf, p);} // Concatinate the JSON value string
+		}
+		else {
+			rc = JSON_GENERIC_ERROR;
+			break;
+		}
 	}
 	return rc;
 }

@@ -23,7 +23,7 @@ int cnt = 0;
 int rc = 1;
 bool success_connect = false;
 
-bool print_log(char* src, int code) {
+bool print_log(const char* src, int code) {
   bool ret = true;
   if(code == 0) {
     Serial.print("[LOG] command: ");
@@ -41,16 +41,16 @@ bool print_log(char* src, int code) {
   return ret;
 }
 
-void msg_callback_delta(char* src, int len) {
-  String data = String(src);
-  int st = data.indexOf("\"state\":") + strlen("\"state\":");
-  int ed = data.indexOf(",\"metadata\":");
-  String delta = data.substring(st, ed);
-  String payload = "{\"state\":{\"reported\":";
-  payload += delta;
-  payload += "}}";
-  payload.toCharArray(JSON_buf, 100);
-  print_log("update thing shadow", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+void msg_callback_delta(char* src, unsigned int len, Message_status_t flag) {
+  if(flag == STATUS_NORMAL) {
+    // Get the whole delta section
+    print_log("getDeltaKeyValue", myClient.getDeltaValueByKey(src, "", JSON_buf, 100));
+    String payload = "{\"state\":{\"reported\":";
+    payload += JSON_buf;
+    payload += "}}";
+    payload.toCharArray(JSON_buf, 100);
+    print_log("update thing shadow", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+  }
 }
 
 void setup() {

@@ -18,6 +18,7 @@
 import sys
 sys.path.append("../lib/")
 from util.logManager import logManager
+from util.jsonManager import jsonManager
 from protocol.mqttCore import *
 from exception.AWSIoTExceptions import *
 from comm.serialCommunicationServer import *
@@ -37,6 +38,8 @@ from command.commandShadowRegisterDeltaCallback import *
 from command.commandShadowUnregisterDeltaCallback import *
 from command.commandYield import *
 from command.commandLockSize import *
+from command.commandJSONKeyVal import *
+from command.commandSetBackoffTiming import *
 from protocol.paho.client import *
 # import traceback
 
@@ -92,6 +95,7 @@ class runtimeHub:
     _serialCommunicationServerHub = None
     _mqttCoreHub = None  # Init when requested
     _shadowManagerHub = None  # Init when requested
+    _jsonManagerHub = None
     # Data structures
     # Keep the record of MQTT subscribe sketch info (slot #), in forms of individual object
     _mqttSubscribeTable = None
@@ -108,6 +112,7 @@ class runtimeHub:
         self._serialCommunicationServerHub = serialCommunicationServer(self._logManagerHub)
         self._serialCommunicationServerHub.setAcceptTimeout(10)
         self._serialCommunicationServerHub.setChunkSize(50)
+        self._jsonManagerHub = jsonManager(512*3)  # Default history limits is set to be 512*3, 512 for accepted, 512 for rejected and 512 for deltas
         self._mqttSubscribeTable = dict()
         self._shadowSubscribeRecord = dict()
         self._shadowRegistrationTable = dict()
@@ -210,6 +215,12 @@ class runtimeHub:
             # Oh the GREAT yield...
             elif srcProtocolMessage[0] == "y":
                 retCommand = commandYield(srcProtocolMessage[1:], self._serialCommunicationServerHub)
+            # JSON Key-Value Retrieve
+            elif srcProtocolMessage[0] == 'j':
+                retCommand = commandJSONKeyVal(srcProtocolMessage[1:], self._serialCommunicationServerHub, self._jsonManagerHub)
+            # Backoff Timing Config
+            elif srcProtocolMessage[0] == 'bf':
+                retCommand = commandSetBackoffTiming(srcProtocolMessage[1:], self._serialCommunicationServerHub, self._mqttCoreHub)
             # Exit the runtimeHub
             elif srcProtocolMessage[0] == "~":
                 retCommand = AWSIoTCommand.AWSIoTCommand("~")
@@ -237,13 +248,15 @@ class runtimeHub:
     # Callbacks
     def _shadowCallback(self, srcPayload, srcCurrentType, srcCurrentToken):
         # Process the incoming shadow messages
-        # Parse them into protocol-style chunks that can be transimitted over the serial
+        # Store JSON payload into jsonManager and pass the handler over
+        # Parse the handler into protocol-style chunks that can be transimitted over the serial
         # and understood by Atmega
         # Execution of this callback is ATOMIC for each shadow action in ONE deviceShadow (Guaranteed by SDK)
         # All token/version controls are performed at deviceShadow level
         # Whatever comes in here should be delivered across serial, with care, of course
         ####
         # srcCurrentType: accepted//rejected//<deviceShadowName>/delta
+        currentJSONHandler = self._jsonManagerHub.storeNewJSON(srcPayload, srcCurrentType)
         currentSketchSlotNumber = -1
         try:
             # Wait util internal data structure is updated
@@ -259,8 +272,8 @@ class runtimeHub:
                 fragments = srcCurrentType.split("/")
                 deviceShadowNameForDelta = fragments[1]
                 currentSketchSlotNumber = self._shadowSubscribeRecord[deviceShadowNameForDelta]
-            # Refactor the payload by adding protocol head and dividing into reasonable chunks
-            formattedPayload = self._formatPayloadForYield(srcPayload, currentSketchSlotNumber)
+            # Refactor the JSONHandler by adding protocol head and dividing into reasonable chunks
+            formattedPayload = self._formatPayloadForYield(currentJSONHandler, currentSketchSlotNumber)
             # Put it into the internal queue of the serialCommunicationServer
             self._serialCommunicationServerHub.writeToInternalYield(formattedPayload)
             # This message will get to be transmitted in future Yield requests
@@ -300,6 +313,8 @@ class runtimeHub:
                     # Write the result back through serial (detailed error code is transmitted here)
                     if currentCommandProtocolName == "y":
                         self._serialCommunicationServerHub.writeToExternalYield()
+                    elif currentCommandProtocolName == "j":
+                        self._serialCommunicationServerHub.writeToExternalJSON()
                     else:
                         self._serialCommunicationServerHub.writeToExternalProtocol()
 

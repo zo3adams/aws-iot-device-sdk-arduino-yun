@@ -24,13 +24,15 @@ int rc = -100; // return value placeholder
 bool success_connect = false; // whether it is connected
 
 // Basic callback function that prints out the message
-void msg_callback(char* src, int len) {
-  Serial.println("CALLBACK:");
-  int i;
-  for(i = 0; i < len; i++) {
-    Serial.print(src[i]);
+void msg_callback(char* src, unsigned int len, Message_status_t flag) {
+  if(flag == STATUS_NORMAL) {
+    Serial.println("CALLBACK:");
+    int i;
+    for(i = 0; i < (int)(len); i++) {
+      Serial.print(src[i]);
+    }
+    Serial.println("");
   }
-  Serial.println("");
 }
 
 void setup() {

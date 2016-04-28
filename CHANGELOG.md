@@ -1,3 +1,15 @@
+# 2.0.0 (April 26th, 2016)
+Features:  
+
+* Added support for individual key-value pair access with configurable JSON history limits for shadow JSON document. Nested JSON key-value pair access is also included.  
+* Added configurable progressive backoff logic in auto-reconnect process.  
+
+Bugfixes/Improvements:  
+
+* Improved API function signature to remove compilation warnings from Arduino IDE v1.6.6+.  
+* Improved message callback function signature to include message status information for each MQTT messages received.  
+* Updated shadow examples to use new individual JSON key-value pair access APIs.  
+
 # 1.1.2 (April 1st, 2016)
 Features:  
 

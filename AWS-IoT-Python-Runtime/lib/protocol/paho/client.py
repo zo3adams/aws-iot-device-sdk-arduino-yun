@@ -45,10 +45,12 @@ if platform.system() == 'Windows':
 else:
     EAGAIN = errno.EAGAIN
 # AWS WSS implementation
-import sys
 sys.path.append("./lib/protocol/paho")
 sys.path.append("../lib/protocol/paho")
+sys.path.append("./lib/")
+sys.path.append("../lib/")
 import securedWebsocket.securedWebsocketCore as wssCore
+import util.progressiveBackoffCore as backoffCore
 
 VERSION_MAJOR=1
 VERSION_MINOR=0
@@ -503,9 +505,22 @@ class Client(object):
         self._subscribePool = dict()
         self._resubDone = True
         self._resubDoneMutex = threading.Lock()
+        self._backoffCore = backoffCore.progressiveBackoffCore()  # Init the backoffCore using default configuration
 
     def __del__(self):
         pass
+
+
+    def setBackoffTiming(self, srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond):
+        """
+        Make custom settings for backoff timing for reconnect logic
+        srcBaseReconnectTimeSecond - The base reconnection time in seconds
+        srcMaximumReconnectTimeSecond - The maximum reconnection time in seconds
+        srcMinimumConnectTimeSecond - The minimum time in milliseconds that a connection must be maintained in order to be considered stable
+        * Raise ValueError if input params are malformed
+        """
+        self._backoffCore.configTime(srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond)
+
 
     def reinitialise(self, client_id="", clean_session=True, userdata=None):
         if self._ssl:
@@ -1312,7 +1327,8 @@ class Client(object):
                 self._state_mutex.release()
             else:
                 self._state_mutex.release()
-                time.sleep(1)
+                self._backoffCore.backOff()
+                # time.sleep(1)
 
                 self._state_mutex.acquire()
                 if self._state == mqtt_cs_disconnecting or run is False or self._thread_terminate is True:
@@ -2058,6 +2074,9 @@ class Client(object):
                 self.on_connect(self, self._userdata, flags_dict, result)
             self._in_callback = False
         self._callback_mutex.release()
+
+        # Start counting for stable connection
+        self._backoffCore.startStableConnectionTimer()
 
         #  Resubscribe
         if result == 0:

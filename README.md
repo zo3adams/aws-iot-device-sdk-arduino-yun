@@ -7,7 +7,8 @@ The AWS-IoT-Arduino-Yún-SDK allows developers to connect their Arduino Yún com
 * [Overview](#overview)
 * [Installation](#installation)
 * [API documentation](#api)
-* [Using the SDK](#usingthesdk)  
+* [Key features](#keyfeatures)
+* [Using the SDK](#usingthesdk)
 * [Example](#example)
 * [Error code](#errorcode)
 * [Support](#support)
@@ -107,25 +108,33 @@ Class Name:
 API:
 
 * MQTT connection  
-[IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)](#setup)  
-[IoT\_Error\_t config(char\* host, int port, char\* cafile_path, char\* keyfile\_path, char\* certfile\_path)](#config)  
-[IoT\_Error\_t configWss(char\* host, int port, char\* cafile_path)](#configWss)  
-[IoT\_Error\_t connect(int keepalive\_interval)](#connect)  
-[IoT\_Error\_t publish(char\* topic, char\* payload, int payload\_len, int qos, bool retain)](#publish)  
-[IoT\_Error\_t subscribe(char\* topic, int qos, message\_callback cb)](#subscribe)  
-[IoT\_Error\_t unsubscribe(char\* topic)](#unsubscribe)  
+[IoT\_Error\_t setup(const char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)](#setup)  
+[IoT\_Error\_t config(const char\* host, unsigned int port, const char\* cafile_path, const char\* keyfile\_path, const char\* certfile\_path)](#config)  
+[IoT\_Error\_t configWss(const char\* host, unsigned int port, const char\* cafile_path)](#configWss)  
+[IoT\_Error\_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond)](#configBackoffTiming)  
+[IoT\_Error\_t connect(unsigned int keepalive\_interval)](#connect)  
+[IoT\_Error\_t publish(const char\* topic, const char\* payload, unsigned int payload\_len, unsigned int qos, bool retain)](#publish)  
+[IoT\_Error\_t subscribe(const char\* topic, unsigned int qos, message\_callback cb)](#subscribe)  
+[IoT\_Error\_t unsubscribe(const char\* topic)](#unsubscribe)  
 [IoT\_Error\_t yield()](#yield)  
 [IoT\_Error\_t disconnect()](#disconnect)  
 * Thing shadow  
-[IoT\_Error\_t shadow\_init(char\* thingName)](#shadow_init)  
-[IoT\_Error\_t shadow\_update(char\* thingName, char\* payload, int payload_len, message\_callback cb, int timeout)](#shadow_update)  
-[IoT\_Error\_t shadow\_get(char\* thingName, message\_callback cb, int timeout)](#shadow_get)  
-[IoT\_Error\_t shadow\_delete(char\* thingName, message\_callback cb, int timeout)](#shadow_delete)  
-[IoT\_Error\_t shadow\_register\_delta\_func(char\* thingName, message\_callback cb)](#shadow_register_delta_func)  
-[IoT\_Error\_t shadow\_unregister\_delta\_func(char\* thingName)](#shadow_unregister_delta_func)
+[IoT\_Error\_t shadow\_init(const char\* thingName)](#shadow_init)  
+[IoT\_Error\_t shadow\_update(const char\* thingName, const char\* payload, unsigned int payload_len, message\_callback cb, unsigned int timeout)](#shadow_update)  
+[IoT\_Error\_t shadow\_get(const char\* thingName, message\_callback cb, unsigned int timeout)](#shadow_get)  
+[IoT\_Error\_t shadow\_delete(const char\* thingName, message\_callback cb, unsigned int timeout)](#shadow_delete)  
+[IoT\_Error\_t shadow\_register\_delta\_func(const char\* thingName, message\_callback cb)](#shadow_register_delta_func)  
+[IoT\_Error\_t shadow\_unregister\_delta\_func(const char\* thingName)](#shadow_unregister_delta_func)  
+[IoT\_Error\_t getDesiredValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getDesiredValueByKey)  
+[IoT\_Error\_t getReportedValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getReportedValueByKey)  
+[IoT\_Error\_t getDeltaValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getDeltaValueByKey)  
+[IoT\_Error\_t getValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getValueByKey)  
+
+Message Callback:  
+[void(\*message\_callback)(char\*, unsigned int, Message\_status\_t)](#message_callback)
 
 <a name="setup"></a>
-### IoT\_Error\_t setup(char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)
+### IoT\_Error\_t setup(const char\* client\_id, bool clean\_session, MQTTv\_t MQTT\_version, bool useWebsocket)
 **Description**  
 Start the Python runtime and set up connection for aws\_iot\_mqtt\_client object. Must be called before any of aws\_iot\_mqtt\_client API is called.
 
@@ -149,7 +158,7 @@ SERIAL1\_COMMUNICATION\_ERROR if there is an error in serial1 communication betw
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="config"></a>
-### IoT\_Error\_t config(char\* host, int port, char\* cafile\_path, char\* keyfile\_path, char\* certfile_path)
+### IoT\_Error\_t config(const char\* host, unsigned int port, const char\* cafile\_path, const char\* keyfile\_path, const char\* certfile_path)
 **Description**  
 Configure host, port and certs location used to connect to AWS IoT. If the input strings for host, cafile\_path, keyfile\_path and certfile\_path are set to NULL, the default value will be used to connect. Must be called to load user settings right after `aws_iot_mqtt_client::setup` and before connect.
 
@@ -172,7 +181,7 @@ CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python R
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="configWss"></a>
-### IoT\_Error\_t configWss(char\* host, int port, char\* cafile\_path)
+### IoT\_Error\_t configWss(const char\* host, unsigned int port, const char\* cafile\_path)
 **Description**  
 Configure host, port and rootCA location used to connect to AWS IoT over Websocket. If the input strings for host and cafile\_path are set to NULL, the default value will be used to connect. Must be called to load user settings right after `aws_iot_mqtt_client::setup` and before connect. The client must be configured in setup to use Websocket.
 
@@ -192,8 +201,29 @@ WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enoug
 CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
 GENERIC\_ERROR if an unknown error happens.
 
+<a name="configBackoffTiming"></a>
+### IoT\_Error\_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond)  
+**Description**  
+Configure the progressive backoff timing on reconnect. Time interval for reconnect attempt will increase/double from baseReconnectQuietTimeSecond to maxReconnectQuietTimeSecond. Once a connection is live for longer than stableConnectionTimeSecond, the time interval will be reset to baseReconnectQuietTimeSecond. Note that stableConnectionTimeSecond must be greater than baseReconnectQuietTimeSecond. More details about progressive backoff can be found [here](#progressiveBackoff).  
+
+Note that if this API is not called, the following default values will be used to configure the backoff timing:  
+
+	baseReconnectQuietTimeSecond = 1;
+	maxReconnectQuietTimeSecond = 32;
+	stableConnectionTimeSecond = 20;
+
+
+**Syntax**  
+
+	object.configBackoffTiming(1, 32, 20); // Configure baseReconnectQuietTimeSecond to be 1 second. Configure maxReconnectQuietTimeSecond to be 32 seconds. Configure stableConnectionTimeSecond to be 20 seconds.
+
+**Parameters**  
+*baseReconnectQuietTimeSecond* - Number of seconds to start with for progressive backoff on reconnect.  
+*maxReconnectQuietTimeSecond* - Maximum number of seconds for progressive backoff on reconnect.   
+*stableConnectionTimeSecond* - Number of seconds for a valid connection to be considered stable.  
+
 <a name="connect"></a>
-### IoT\_Error\_t connect(int keepalive\_interval)
+### IoT\_Error\_t connect(unsigned int keepalive\_interval)
 **Description**  
 Connect to AWS IoT, using user-specific keepalive setting.
 
@@ -218,7 +248,7 @@ CONNECT\_GENERIC\_ERROR if there is an error in executing the command in Python 
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="publish"></a>
-### IoT\_Error\_t publish(char\* topic, char\* payload, int payload\_len, int qos, bool retain)
+### IoT\_Error\_t publish(const char\* topic, const char\* payload, unsigned int payload\_len, unsigned int qos, bool retain)
 **Description**  
 Publish a new message to the desired topic with qos and retain flag settings using MQTT protocol
 
@@ -245,7 +275,7 @@ PUBLISH\_GENERIC\_ERROR if there is an error in executing the command in Python 
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="subscribe"></a>
-### IoT\_Error\_t subscribe(char\* topic, int qos, message_callback cb)
+### IoT\_Error\_t subscribe(const char\* topic, unsigned int qos, message\_callback cb)
 **Description**  
 Subscribe to the desired topic and register a callback for new messages from this topic. 
 
@@ -256,7 +286,7 @@ Subscribe to the desired topic and register a callback for new messages from thi
 **Parameters**  
 *topic* - The topic to subscribe to. Must be a NULL-terminated string.  
 *qos* - Quality of service, could be 0 or 1.  
-*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char*, int) to store the incoming message content and the length of the message.
+*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char*, unsigned int, Message_status_t) to store the incoming message content and the length of the message.
 
 **Returns**  
 NONE\_ERROR if the subscribe is successful.  
@@ -271,7 +301,7 @@ SUBSCRIBE\_GENERIC\_ERROR if there is an error in executing the command in Pytho
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="unsubscribe"></a>
-### IoT\_Error\_t unsubscribe(char\* topic)
+### IoT\_Error\_t unsubscribe(const char\* topic)
 **Description**  
 Unsubscribe to the desired topic.
 
@@ -331,7 +361,7 @@ DISCONNECT\_GENERIC\_ERROR if there is an error in executing the command in Pyth
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_init"></a>
-### IoT\_Error\_t shadow\_init(char\* thingName)
+### IoT\_Error\_t shadow\_init(const char\* thingName)
 **Description**  
 Initialize thing shadow configuration and a shadow instance with thingName. Should be called before any of the thing shadow API call for thingName shadow operations.
 
@@ -350,7 +380,7 @@ SHADOW\_INIT\_ERROR if thing shadow initialization failed.
 GENERIC\_ERROR if an unknown error happens. 
 
 <a name="shadow_update"></a>
-### IoT\_Error\_t shadow\_update(char\* thingName, char* payload, int payload_len, message\_callback cb, int timeout)
+### IoT\_Error\_t shadow\_update(const char\* thingName, const char* payload, unsigned int payload_len, message\_callback cb, unsigned int timeout)
 **Description**  
 Update the thing shadow data in the cloud by publishing a new JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. Subscription to accepted/rejected topics will be processed in a persistent manner and will not be unsubscribed once this API is called for this shadow.
 
@@ -362,7 +392,7 @@ Update the thing shadow data in the cloud by publishing a new JSON file onto the
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.  
 *payload* - The data that needs to be updated into the cloud, in JSON file format.  
 *payload_len* - Length of payload  
-*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, int) to store the incoming message content and the length of the message.  
+*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, unsigned int, Message_status_t) to store the incoming message content and the length of the message.  
 *timeout* - The maximum time to wait for feedback.  
 
 
@@ -381,7 +411,7 @@ SHADOW\_UPDATE\_GENERIC\_ERROR if there is an error in executing the command in 
 GENERIC\_ERROR if an unknown error happens. 
 
 <a name="shadow_get"></a>
-### IoT\_Error\_t shadow\_get(char\* thingName, message\_callback cb, int timeout)
+### IoT\_Error\_t shadow\_get(const char\* thingName, message\_callback cb, unsigned int timeout)
 **Description**  
 Obtain the thing shadow data in the cloud by publishing an empty JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. Subscription to accepted/rejected topics will be processed in a persistent manner and will not be unsubscribed once this API is called for this shadow. Thing shadow data will be available as a JSON file in the callback.
 
@@ -391,7 +421,7 @@ Obtain the thing shadow data in the cloud by publishing an empty JSON file onto 
 
 **Parameters**  
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.  
-*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, int) to store the incoming message content and the length of the message.  
+*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, unsigned int, Message_status_t) to store the incoming message content and the length of the message.  
 *timeout* - The maximum time to wait for feedback.  
 
 **Returns**  
@@ -409,7 +439,7 @@ SHADOW\_GET\_GENERIC\_ERROR if there is an error in executing the command in Pyt
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_delete"></a>
-### IoT\_Error\_t shadow\_delete(char\* thingName, message\_callback cb, int timeout)
+### IoT\_Error\_t shadow\_delete(const char\* thingName, message\_callback cb, unsigned int timeout)
 **Description**  
 Delete the thing shadow data in the cloud by publishing an empty JSON file onto the corresponding thing shadow topic and subscribing accepted/rejected thing shadow topics to get feedback of whether it is a successful/failed request. Timeout can be set in seconds as the maximum waiting time for feedback. Once the request gets timeout, a timeout message will be received. The registered callback function will be called whenever there is an accepted/rejected/timeout feedback. After the feedback comes in, it will automatically unsubscribe accepted/rejected shadow topics. 
 
@@ -419,7 +449,7 @@ Delete the thing shadow data in the cloud by publishing an empty JSON file onto 
 
 **Parameters**  
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.  
-*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, int) to store the incoming message content and the length of the message.  
+*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, unsigned int, Message_status_t) to store the incoming message content and the length of the message.  
 *timeout* - The maximum time to wait for feedback.  
 
 **Returns**  
@@ -437,7 +467,7 @@ SHADOW\_DELETE\_GENERIC\_ERROR if there is an error in executing the command in 
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_register_delta_func"></a>
-### IoT\_Error\_t shadow\_register\_delta\_func(char\* thingName, message\_callback cb)
+### IoT\_Error\_t shadow\_register\_delta\_func(const char\* thingName, message\_callback cb)
 **Description**  
 Subscribe to the delta topic of the corresponding thing shadow with the given name and register a callback. Whenever there is a difference between the desired and reported state data, the registered callback will be called and the feedback/message will be available in the callback.
 
@@ -447,7 +477,7 @@ Subscribe to the delta topic of the corresponding thing shadow with the given na
 
 **Parameters**  
 *thingName* - The name of the thing shadow in the cloud. Must be a NULL-terminated string.  
-*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, int) to store the incoming message content and the length of the message.
+*cb* - Function pointer to user-specific callback function to call when a new message comes in for the subscribed topic. The callback function should have a parameter list of (char\*, unsigned int, Message_status_t) to store the incoming message content and the length of the message.
 
 **Return**  
 NONE\_ERROR if the shadow delta topic is successfully subscribed and the callback function is successfully registered.  
@@ -462,7 +492,7 @@ SHADOW\_REGISTER\_DELTA\_CALLBACK\_GENERIC\_ERROR if there is an error in execut
 GENERIC\_ERROR if an unknown error happens.
 
 <a name="shadow_unregister_delta_func"></a>
-### IoT\_Error\_t shadow\_unregister\_delta\_func(char\* thingName)
+### IoT\_Error\_t shadow\_unregister\_delta\_func(const char\* thingName)
 **Description**  
 Unsubscribe to the delta topic of the corresponding thing shadow with the given name and unregister the callback. There will be no message coming after this API call if another difference occurs between the desired and reported state data for this thing shadow.
 
@@ -484,7 +514,255 @@ UNSUBSCRIBE\_TIMEOUT if the subscribe gets timeout.
 SHADOW\_UNREGISTER\_DELTA\_CALLBACK\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
 GENERIC\_ERROR if an unknown error happens.
 
+<a name="getDesiredValueByKey"></a>
+### IoT\_Error\_t getDesiredValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)  
+**Description**  
+Get the value by key in the desired section in the shadow JSON document denoted by the provided identifier. The corresponding value will be stored as a string into a user-specified externalBuffer. Nested key-value access is available. More information can be found [here](#individualKVAccess).  
+
+**Syntax**  
+
+	object.getDesiredValueByKey("JSON-0", "property1", someBuffer, someBufferSize); // Access JSONDocument["state"]["desired"]["property1"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer
+	object.getDesiredValueByKey("JSON-0", "property2\"subproperty", someBuffer, someBufferSize); // Access JSONDocument["state"]["desired"]["property2"]["subproperty"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer 
+
+**Parameteres**  
+*JSONIdentifier* - The JSON Identifier string to access a certain JSON document stored in Python runtime on the OpenWRT side. This is obtained from the registered shadow callback as shadow responses.  
+*key* - The key for dereferencing out the value in the desired section of the JSON document. Nested key can be specified using `"` as the delimiator.  
+*externalJSONBuf* - Buffer specified by the user to store the incoming value, as string.  
+*bufSize* - Size of the buffer to store the incoming value, as string.  
+
+**Returns**  
+NONE\_ERROR if the value is retrieved successfully.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+OVERFLOW\_ERROR if the length of the incoming value exceeds the size of the provided externalJSONBuf.  
+JSON\_FILE\_NOT\_FOUND if the JSON document with the provided JSON identifier does not exist.  
+JSON\_KEY\_NOT\_FOUND if the specified key does not exist in the JSON document denoted by the provided JSON identifier.  
+JSON\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.   
+GENERIC\_ERROR if an unknown error happens.   
+
+<a name="getReportedValueByKey"></a>
+### IoT\_Error\_t getReportedValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)]  
+**Description**  
+Get the value by key in the reported section in the shadow JSON document denoted by the provided identifier. The corresponding value will be stored as a string into a user-specified externalBuffer. Nested key-value access is available. More information can be found [here](#individualKVAccess).  
+
+**Syntax**  
+
+	object.getReportedValueByKey("JSON-0", "property1", someBuffer, someBufferSize); // Access JSONDocument["state"]["reported"]["property1"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer
+	object.getReportedValueByKey("JSON-0", "property2\"subproperty", someBuffer, someBufferSize); // Access JSONDocument["state"]["reported"]["property2"]["subproperty"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer 
+
+**Parameters**  
+*JSONIdentifier* - The JSON Identifier string to access a certain JSON document stored in Python runtime on the OpenWRT side. This is obtained from the registered shadow callback as shadow responses.  
+*key* - The key for dereferencing out the value in the reported section of the JSON document. Nested key can be specified using `"` as the delimiator.  
+*externalJSONBuf* - Buffer specified by the user to store the incoming value, as string.  
+*bufSize* - Size of the buffer to store the incoming value, as string.  
+
+**Returns**  
+NONE\_ERROR if the value is retrieved successfully.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+OVERFLOW\_ERROR if the length of the incoming value exceeds the size of the provided externalJSONBuf.  
+JSON\_FILE\_NOT\_FOUND if the JSON document with the provided JSON identifier does not exist.  
+JSON\_KEY\_NOT\_FOUND if the spedified key does not exist in the JSON document denoted by the provided JSON identifier.  
+JSON\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.   
+GENERIC\_ERROR if an unknown error happens.   
+
+<a name="getDeltaValueByKey"></a>
+### IoT\_Error\_t getDeltaValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)]  
+**Description**  
+Get the value by key in the state section in the shadow JSON document denoted by the provided identifier. The corresponding value will be stored as a string into a user-specified externalBuffer. Nested key-value access is available. More information can be found [here](#individualKVAccess).  
+
+**Syntax**  
+
+	object.getDeltaValueByKey("JSON-0", "property1", someBuffer, someBufferSize); // Access JSONDocument["state"]["property1"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer
+	object.getDeltaValueByKey("JSON-0", "property2\"subproperty", someBuffer, someBufferSize); // Access JSONDocument["state"]["property2"]["subproperty"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer 
+
+**Parameters**  
+*JSONIdentifier* - The JSON Identifier string to access a certain JSON document stored in Python runtime on the OpenWRT side. This is obtained from the registered shadow callback as shadow responses.  
+*key* - The key for dereferencing out the value in the state section of the JSON document. Nested key can be specified using `"` as the delimiator.  
+*externalJSONBuf* - Buffer specified by the user to store the incoming value, as string.  
+*bufSize* - Size of the buffer to store the incoming value, as string.  
+
+**Returns**  
+NONE\_ERROR if the value is retrieved successfully.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+OVERFLOW\_ERROR if the length of the incoming value exceeds the size of the provided externalJSONBuf.  
+JSON\_FILE\_NOT\_FOUND if the JSON document with the provided JSON identifier does not exist.  
+JSON\_KEY\_NOT\_FOUND if the spedified key does not exist in the JSON document denoted by the provided JSON identifier.  
+JSON\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.   
+GENERIC\_ERROR if an unknown error happens.   
+
+<a name="getValueByKey"></a>
+### IoT\_Error\_t getValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)]  
+**Description**  
+Get the value by key in the shadow JSON document denoted by the provided identifier. The corresponding value will be stored as a string into a user-specified externalBuffer. Nested key-value access is available. More information can be found [here](#individualKVAccess).  
+
+**Syntax**  
+
+	object.getValueByKey("JSON-0", "property1", someBuffer, someBufferSize); // Access JSONDocument["property1"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer
+	object.getValueByKey("JSON-0", "property2\"subproperty", someBuffer, someBufferSize); // Access JSONDocument["property2"]["subproperty"] denoted by JSONIdentifier "JSON-0" and store the value in someBuffer 
+
+**Parameters**  
+*JSONIdentifier* - The JSON Identifier string to access a certain JSON document stored in Python runtime on the OpenWRT side. This is obtained from the registered shadow callback as shadow responses.  
+*key* - The key for dereferencing out the value in the JSON document. Nested key can be specified using `"` as the delimiator.  
+*externalJSONBuf* - Buffer specified by the user to store the incoming value, as string.  
+*bufSize* - Size of the buffer to store the incoming value, as string.  
+
+**Returns**  
+NONE\_ERROR if the value is retrieved successfully.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+OVERFLOW\_ERROR if the length of the incoming value exceeds the size of the provided externalJSONBuf.  
+JSON\_FILE\_NOT\_FOUND if the JSON document with the provided JSON identifier does not exist.  
+JSON\_KEY\_NOT\_FOUND if the spedified key does not exist in the JSON document denoted by the provided JSON identifier.  
+JSON\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.   
+GENERIC\_ERROR if an unknown error happens.   
+
+<a name="message_callback"></a>
+### void(\*message\_callback)(char\*, unsigned int, Message\_status\_t)]  
+**Description**  
+Callback function for received MQTT messages, used for plain MQTT communications as well as shadow communications.  
+For plain MQTT messages, message payload and size will be passed into the callback. Message\_status\_t will be STATUS\_NORMAL. See Parameters below for more details.  
+For shadow messages, JSON identifier and its size will be passed into the callback. Message\_status\_t varies for shadow messages from different topics. For accept shadow responses, Message\_status\_t will be STATUS\_SHADOW\_ACCEPTED. For reject shadow responses, Message\_status\_t will be STATUS\_SHADOW\_REJECTED. For delta shadow responses, Message\_status\_t will be STATUS\_NORMAL. See Parameters below for more details.  
+
+**Syntax**  
+
+	void custom_message_callback(char* msg, unsigned int length, Message_status_t status) {
+		// * Access the incoming message from msg, length
+		// Message payload for plain MQTT messages
+		// JSON identifer for shadow messages
+		// * Access the message status from status
+		// STATUS_NORMAL for plain MQTT/shadow delta messages
+		// STATUS_SHADOW_ACCEPTED for shadow accept responses
+		// STATUS_SHADOW_REJECTED for shadow reject responses
+	}
+
+**Parameters**  
+char\* - Incoming message. Message payload for plain MQTT messages and JSON identifier for shadow message/responses.  
+unsigned int - Length of bytes of the incoming message.  
+Message\_status\_t - Status of the incoming responses/messages. It has the following values:   
+
+	typedef enum {
+		STATUS_DEBUG = -1,
+		STATUS_NORMAL = 0,
+		STATUS_SHADOW_TIMEOUT = 1,
+		STATUS_SHADOW_ACCEPTED = 2,
+		STATUS_SHADOW_REJECTED = 3,
+		STATUS_MESSAGE_OVERFLOW = 4
+	} Message_status_t;
+
+`STATUS_NORMAL` indicates that a new plain MQTT message/shadow delta message has arrived.  
+`STATUS_SHADOW_TIMEOUT` indicates that the incoming message is a shadow response for an operation timeout. There was no response received for the corresponding shadow operation within the preconfigured timeout.  
+`STATUS_SHADOW_ACCEPTED` indicates that the incoming message is a shadow response for accept. The corresponding shadow operation was accepted by the AWS IoT service and has succeeded.  
+`STATUS_SHADOW_REJECTED` indicates that the incoming message is a shadow response for reject. The corresponding shadow operation was rejected by the AWS IoT service and has failed.  
+`STATUS_MESSAGE_OVERFLOW` indicates that the size of the incoming message has exceeded the size of the internal message buffer. Internal message buffer size, configured in `aws_iot_config_SDK.h`, needs to be increased to receive the complete incoming message.  
+`STATUS_DEBUG` is for SDK internal use.  
+
+**Returns**  
+No returns.  
+
 ****
+
+<a name="keyfeatures"></a>
+## Key features  
+<a name="individualKVAccess"></a>
+#### Individual Key Value Access for Shadow  
+As for shadow operations (Get/Update/Delete) and shadow delta messages, instead of detailed the message content for shadow JSON document, a JSON identifier will be passed through into the registered callback so that it can be used for key/value pair access on demand through the individual key/value pair access APIs. A JSON identifier of a shadow JSON response received looks like this:  
+
+	JSON-i
+
+where i is an integer number.  
+
+Note that there is a limitation on the total number of history JSON documents that can be kept on the OpenWRT side for key/value pair retrival. The limits are:  
+
+512 entries for shadow JSON accepted responses  
+512 entries for shadow JSON rejected responses  
+512 entries for shadow JSON delta messages  
+
+Once the limits are exceeded, new incoming shadow JSON documents will overwrite history entries starting from the begining (`JSON-0`, `JSON-1` and `JSON-2`).  
+
+The following APIs are provided for uses to access shadow JSON key value pair from Arduino sketch in an easier manner:  
+[IoT\_Error\_t getDesiredValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getDesiredValueByKey)  
+[IoT\_Error\_t getReportedValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getReportedValueByKey)  
+[IoT\_Error\_t getDeltaValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getDeltaValueByKey)  
+[IoT\_Error\_t getValueByKey(const char\* JSONIdentifier, const char\* key, char\* externalJSONBuf, unsigned int bufSize)](#getValueByKey)  
+
+For a typical shadow JSON document (responses for get/update/delete), it should look like this:  
+
+	{
+		"state": {
+			"desired": {
+				...
+			},
+			"reported": {
+				...
+			}
+		},
+		...
+	}
+
+`getDesiredValueByKey` and `getReportedValueByKey` can be used to access the key value pair in the desired/reported section respectively.  
+
+For a typical shadow JSON document (messages for delta), it should look like this:  
+
+	{
+		"state": {
+			...
+		},
+		...
+	}
+
+`getDeltaValueByKey` can be used to access the key value pair in the delta shadow JSON messages.  
+
+More generally, `getValueByKey` can be used to access key value pair in a more generic way where users can specify their own key patterns. Nested JSON key is denoted using `"` as the deliminator.  
+
+For example, we have the following shadow JSON document with a JSON identifier `JSON-0`:  
+
+	{
+		"state": {
+			"desired": {
+				"property1": "value1",
+				"property2": {
+					"subproperty": "value2"
+				}
+			},
+			"reported": {
+				"property3": "value3"
+			}
+		},
+		...
+	}
+
+To access a series of key value pair, we can use the following function calls:  
+
+	object.getDesiredValueByKey("JSON-0", "property1", buffer, bufferSize); // Access JSONDocument["state"]["desired"]["property1"]
+	object.getReportedValueByKey("JSON-0", "property3", buffer, bufferSize); // Access JSONDocument["state"]["reported"]["property3"]
+	object.getDesiredValueByKey("JSON-0", "property2\"subproperty", buffer, bufferSize); // Access JSONDocument["state"]["desired"]["property2"]["subproperty"]
+	
+Note that the following two function calls are equivalent. They both accessthe nested JSON key value pair `JSONDocument["state"]["desired"]["property2"]["subproperty"]`:  
+
+	object.getDesiredValueByKey("JSON-0", "property2\"subproperty", buffer, bufferSize);
+	object.getValueByKey("JSON-0", "state\"desired\"property2\"subproperty", buffer, bufferSize);
+
+See that `getValueByKey` is a more generic way for shadow JSON key value access.  
+
+For detailed use cases, please check out [Examples](#example).
+
+<a name="progressiveBackoff"></a>
+#### Progressive Reconnect Backoff  
+API is provided to configure the progressive backoff timing parameters:  
+[IoT\_Error\_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond)](#configBackoffTiming)
+
+The auto-reconnect happens with a progressive backoff, which follows the following mechanism for reconnect quiet time:   
+
+<h5 align="center">t<sup>current</sup> = min(2<sup>n</sup>t<sup>base</sup>, t<sup>max</sup>),</h5>  
+
+where t<sup>current</sup> is the current reconnect quiet time, t<sup>base</sup> is the base reconnect quiet time, t<sup>max</sup> is the maximum reconnect quiet time.  
+
+The reconnect quiet time will be doubled on disconnect and reconnect attempt util it reaches the preconfigured maximum reconnect quiet time. Once the connection is stable for over the stableConnectionTime, the reconnect quiet time will be reset to the baseReconnectQuietTime.  
+
+If no `configBackoffTiming` gets called, the following default configuration for backoff timing will be done on `setup` call:  
+
+	baseReconnectQuietTimeSecond = 1;
+	maxReconnectQuietTimeSecond = 32;
+	stableConnectionTimeSecond = 20;
+
 
 <a name="usingthesdk"></a>
 ## Using the SDK
@@ -505,7 +783,7 @@ GENERIC\_ERROR if an unknown error happens.
 	#define AWS_IOT_PRIVATE_KEY_FILENAME "privkey.pem"              // your private key filename
 	//===============================================================
 
-**These settings can be downloaded from the AWS IoT console after you created a device and licked on "Connect a device".**  	
+**These settings can be downloaded from the AWS IoT console after you created a device and clicked on "Connect a device".**  	
 
 **Make sure you have included the AWS-IoT-Arduino-Yún-SDK library:**
 
@@ -665,7 +943,7 @@ Please make sure to start the example sketch after the board is fully set up and
 		
 	Create logging function for execution tracking.
 	
-		bool print_log(char* src, int len) {
+		bool print_log(const char* src, int code) {
 			...
 		}
 	
@@ -688,18 +966,18 @@ Please make sure to start the example sketch after the board is fully set up and
   		}
   		delay(1000);
   		
-  	For delta callback function, simply parse out the desired state and put it as the reported state in the JSON file that needs to be updated.
+  	For delta callback function, obtain the desired/delta state and put it as the reported state in the JSON file that needs to be updated.
   	
-  		void msg_callback_delta(char* src, int len) {
-  			String data = String(src);
-  			int st = data.indexOf("\"state\":") + strlen("\"state\":");
-  			int ed = data.indexOf(",\"metadata\":");
-  			String delta = data.substring(st, ed);
-  			String payload = "{\"state\":{\"reported\":";
-  			payload += delta;
-  			payload += "}}";
-  			payload.toCharArray(JSON_buf, 100);
-  			print_log("update thing shadow", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+  		void msg_callback_delta(const char* src, unsigned int len, Message_status_t flag) {
+  			if(flag == STATUS_NORMAL) {
+  				// Get the whole delta section
+  				print_log("getDeltaKeyValue", myClient.getDeltaValueByKey(src, "", JSON_buf, 100));
+  				String payload = "{\"state\":{\"reported\":";
+  				payload += delta;
+  				payload += "}}";
+  				payload.toCharArray(JSON_buf, 100);
+  				print_log("update thing shadow", myClient.shadow_update(AWS_IOT_MY_THING_NAME, JSON_buf, strlen(JSON_buf), NULL, 5));
+  			}
   		}
   	
   	Once an update of the desired state for this device is received, a delta message will be received and displayed in the Serial monitor. The device will update this data into the cloud.  
@@ -748,7 +1026,7 @@ Before proceeding to the following steps, please make sure you have your board s
 		
 	Create logging function for execution tracking.
 	
-		bool print_log(char* src, int len) {
+		bool print_log(const char* src, int code) {
 			...
 		}
 	
@@ -781,17 +1059,14 @@ Before proceeding to the following steps, please make sure you have your board s
           }
         }
 
-  For delta callback function, parse out the desired state and the desired temperature data in it. Update the desired temperature record on board so that the board knows what to do, heating or cooling.
+  For delta callback function, get the desired state and the desired temperature data in it. Update the desired temperature record on board so that the board knows what to do, heating or cooling.
 
-        void msg_callback_delta(char* src, int len) {
-          String data = String(src);
-          int st = data.indexOf("\"state\":") + strlen("\"state\":");
-          int ed = data.indexOf(",\"metadata\":");
-          String delta = data.substring(st, ed);
-          st = delta.indexOf("\"Temp\":") + strlen("\"Temp\":");
-          ed = delta.indexOf("}");
-          String delta_data = delta.substring(st, ed);
-          desiredTemp = delta_data.toFloat();
+        void msg_callback_delta(const char* src, unsigned int len, Message_status_t flag) {
+        	if(flag == STATUS_NORMAL) {
+        		// Get Temp section in delta messages
+        		print_log("getDeltaKeyValue", myClient.getDeltaValueByKey(src, "Temp", JSON_buf, 50));				String delta = data.substring(st, ed);
+        		desiredTemp = String(JSON_buf).toFloat();
+        	}
         }
         
   Each time the board receives a new desired temperature different from its reported temperature. Changes will happen, synced into shadow and captured by the example App. Users will be able to see the whole process of temperature updating from the App side.
@@ -840,7 +1115,10 @@ The following error codes are defined in `AWS-IoT-Arduino-Yun-Library/aws_iot_er
 		SHADOW_REGISTER_DELTA_CALLBACK_GENERIC_ERROR = -33,
 		SHADOW_UNREGISTER_DELTA_CALLBACK_GENERIC_ERROR = -34,
 		YIELD_ERROR = -35,
-		WEBSOCKET_CREDENTIAL_NOT_FOUND = -36
+		WEBSOCKET_CREDENTIAL_NOT_FOUND = -36,
+		JSON_FILE_NOT_FOUND = -37,
+		JSON_KEY_NOT_FOUND = -38,
+		JSON_GENERIC_ERROR = -39
 	} IoT_Error_t;
 	
 <a name="support"></a>

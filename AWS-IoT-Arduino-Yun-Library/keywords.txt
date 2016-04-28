@@ -17,3 +17,7 @@ shadow_unregister_delta_func	KEYWORD2
 shadow_get			KEYWORD2
 shadow_update			KEYWORD2
 shadow_delete			KEYWORD2
+getDesiredValueByKey	KEYWORD2
+getReportedValueByKey	KEYWORD2
+getValueByKey		KEYWORD2
+configBackoffTiming	KEYWORD2

@@ -131,6 +131,13 @@ class mqttCore:
         self._cert = srcCert
         self._log.writeLog("Load CAFile, Key, Cert configuration.")
 
+    def setBackoffTime(self, srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond):
+        if srcBaseReconnectTimeSecond is None or srcMaximumReconnectTimeSecond is None or srcMinimumConnectTimeSecond is None:
+            raise TypeError("None type inputs detected.")
+        # Below line could raise ValueError if input params are not properly selected
+        self._pahoClient.setBackoffTiming(srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond)
+        self._log.writeLog("Custom setting for backoff timing.")
+
     # MQTT connection
     def connect(self, keepAliveInterval=60):
         if(keepAliveInterval is None):

@@ -18,7 +18,7 @@
 #include "aws_iot_config.h"
 
 aws_iot_mqtt_client myClient;
-char JSON_buf[100];
+char JSON_buf[50];
 char float_buf[5];
 float reportedTemp = 70.0;
 float desiredTemp = 70.0;
@@ -26,7 +26,7 @@ int cnt = 0;
 int rc = 1;
 bool success_connect = false;
 
-bool print_log(char* src, int code) {
+bool print_log(const char* src, int code) {
   bool ret = true;
   if(code == 0) {
     Serial.print("[LOG] command: ");
@@ -44,15 +44,12 @@ bool print_log(char* src, int code) {
   return ret;
 }
 
-void msg_callback_delta(char* src, int len) {
-  String data = String(src);
-  int st = data.indexOf("\"state\":") + strlen("\"state\":");
-  int ed = data.indexOf(",\"metadata\":");
-  String delta = data.substring(st, ed);
-  st = delta.indexOf("\"Temp\":") + strlen("\"Temp\":");
-  ed = delta.indexOf("}");
-  String delta_data = delta.substring(st, ed);
-  desiredTemp = delta_data.toFloat();
+void msg_callback_delta(char* src, unsigned int len, Message_status_t flag) {
+  if(flag == STATUS_NORMAL) {
+    // Get Temp section in delta messages
+    print_log("getDeltaKeyValue", myClient.getDeltaValueByKey(src, "Temp", JSON_buf, 50));
+    desiredTemp = String(JSON_buf).toFloat();
+  }
 }
 
 void setup() {

@@ -26,13 +26,32 @@ typedef enum {
 	MQTTv311 = 4
 } MQTTv_t;
 
+// Check baudrate
 typedef enum {
 	BAUD_TYPE_UNKNOWN = -1,
 	BAUD_TYPE_ARDUINO = 0,
 	BAUD_TYPE_LININO = 1
 } Baud_t;
 
-typedef void(*message_callback)(char*, int);
+// Callback message status
+typedef enum {
+	STATUS_DEBUG = -1,
+	STATUS_NORMAL = 0,
+	STATUS_SHADOW_TIMEOUT = 1,
+	STATUS_SHADOW_ACCEPTED = 2,
+	STATUS_SHADOW_REJECTED = 3,
+	STATUS_MESSAGE_OVERFLOW = 4
+} Message_status_t;
+
+// JSON key-value pair access type
+typedef enum {
+	GENERAL_SECTION = 0,
+	DESIRED_SECTION = 1,
+	REPORTED_SECTION = 2,
+	DELTA_SECTION = 3
+} KV_access_t;
+
+typedef void(*message_callback)(char*, unsigned int, Message_status_t);
 
 class aws_iot_mqtt_client {
 	public:
@@ -47,22 +66,30 @@ class aws_iot_mqtt_client {
 				sub_group[i].callback = NULL;
 			}
 		}
-		IoT_Error_t setup(char* client_id, bool clean_session=true, MQTTv_t MQTT_version=MQTTv311, bool useWebsocket=false);
-		IoT_Error_t config(char* host, int port, char* cafile_path, char* keyfile_path, char* certfile_path);
-		IoT_Error_t configWss(char* host, int port, char* cafile_path);
-		IoT_Error_t connect(int keepalive_interval=60);
-		IoT_Error_t publish(char* topic, char* payload, int payload_len, int qos, bool retain);
-		IoT_Error_t subscribe(char* topic, int qos, message_callback cb);
-		IoT_Error_t unsubscribe(char* topic);
+		IoT_Error_t setup(const char* client_id, bool clean_session=true, MQTTv_t MQTT_version=MQTTv311, bool useWebsocket=false);
+		IoT_Error_t config(const char* host, unsigned int port, const char* cafile_path, const char* keyfile_path, const char* certfile_path);
+		IoT_Error_t configWss(const char* host, unsigned int port, const char* cafile_path);
+		IoT_Error_t connect(unsigned int keepalive_interval=60);
+		IoT_Error_t publish(const char* topic, const char* payload, unsigned int payload_len, unsigned int qos, bool retain);
+		IoT_Error_t subscribe(const char* topic, unsigned int qos, message_callback cb);
+		IoT_Error_t unsubscribe(const char* topic);
 		IoT_Error_t yield();
 		IoT_Error_t disconnect();
-		// Thing shadow support
-		IoT_Error_t shadow_init(char* thingName);
-		IoT_Error_t shadow_update(char* thingName, char* payload, int payload_len, message_callback cb, int timeout);
-		IoT_Error_t shadow_get(char* thingName, message_callback cb, int timeout);
-		IoT_Error_t shadow_delete(char* thingName, message_callback cb, int timeout);
-		IoT_Error_t shadow_register_delta_func(char* thingName, message_callback cb);
-		IoT_Error_t shadow_unregister_delta_func(char* thingName);
+		// Device shadow support
+		IoT_Error_t shadow_init(const char* thingName);
+		IoT_Error_t shadow_update(const char* thingName, const char* payload, unsigned int payload_len, message_callback cb, unsigned int timeout);
+		IoT_Error_t shadow_get(const char* thingName, message_callback cb, unsigned int timeout);
+		IoT_Error_t shadow_delete(const char* thingName, message_callback cb, unsigned int timeout);
+		IoT_Error_t shadow_register_delta_func(const char* thingName, message_callback cb);
+		IoT_Error_t shadow_unregister_delta_func(const char* thingName);
+		// JSON key-value-pair access
+		IoT_Error_t getDesiredValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize);
+		IoT_Error_t getReportedValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize);
+		IoT_Error_t getDeltaValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize);
+		IoT_Error_t getValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize);
+		// Progressive backoff configuration
+		IoT_Error_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond);
+
 	private:
 		typedef struct {
 			bool is_used;
@@ -73,9 +100,9 @@ class aws_iot_mqtt_client {
 		char msg_buf[MAX_BUF_SIZE]; // To store message chunks
 		mqtt_sub_element sub_group[MAX_SUB];
 		bool timeout_flag; // Is there a timeout when executing RPC
-		IoT_Error_t base_subscribe(char* topic, int qos, message_callback cb, int is_delta);
 		Baud_t find_baud_type();
-		IoT_Error_t setup_exec(char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket);
+		IoT_Error_t getJSONValueLoop(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize, KV_access_t accessType);
+		IoT_Error_t setup_exec(const char* client_id, bool clean_session, MQTTv_t MQTT_version, bool useWebsocket);
 		void exec_cmd(const char* cmd, bool wait, bool single_line);
 		int find_unused_subgroup();
 		void clearProtocolOnSerialBegin(long baudrate);

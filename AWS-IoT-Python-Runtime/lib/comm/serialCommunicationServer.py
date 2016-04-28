@@ -27,6 +27,7 @@ import signal
 class serialCommunicationServer(communicationServer.communicationServer):
     _protocolMessageQueue = None
     _yieldMessageQueue = None
+    _jsonBuf = None
     _txBuf = None
     _log = None
     _acceptTimeout = 0  # Never timeout
@@ -39,6 +40,7 @@ class serialCommunicationServer(communicationServer.communicationServer):
         self._log = srcLogManager
         self._protocolMessageQueue = Queue.Queue(0)
         self._yieldMessageQueue = Queue.Queue(0)
+        self._jsonBuf = ""
         self._txBuf = ""
         # Register timeout signal handler
         signal.signal(signal.SIGALRM, self._timeoutHandler)
@@ -107,6 +109,10 @@ class serialCommunicationServer(communicationServer.communicationServer):
         self._yieldMessageQueue.put(srcContent)
         self._log.writeLog("Updated serialCommunicationServer internal yieldMessageQueue by inserting a new message. Size: " + str(self._yieldMessageQueue.qsize()))
 
+    def writeToInternalJSON(self, srcContent):
+        self._jsonBuf = srcContent
+        self._log.writeLog("Updated serialCommunicationServer internal json buffer with a new JSON payload of size: " + str(len(self._jsonBuf)))
+
     def writeToExternalYield(self):
         # Write ONE chunk to the remote client
         # If no retained chunks, pick ONE new message from the given messageQueue and start again
@@ -132,3 +138,15 @@ class serialCommunicationServer(communicationServer.communicationServer):
             self._log.writeLog("Send through serial to remote client: " + thisProtocolMessage + " Size: " + str(len(thisProtocolMessage)))
         else:
             self._log.writeLog("No protocol messages available. Exiting writeToExternalProtocol.")
+
+    def writeToExternalJSON(self):
+        # Wrapper for JSON serial communication
+        # Only ONE JSON payload will be tracked, this method will be called in a loop util there is not more chunks for THIS payload
+        if self._jsonBuf != "":
+            self._txBuf = self._jsonBuf[0:self._chunkSize]
+            self._basicOutput(self._txBuf)
+            self._log.writeLog("JSON: Send through serial to remote client. Chunk: " + self._txBuf + " Size: " + str(len(self._txBuf)))
+            self._jsonBuf = self._jsonBuf[self._chunkSize:]
+        else:
+            self._basicOutput("J F: No JSON chunks.")
+            self._log.writeLog("No more chunks for this JSON payload. Exiting writeToExternalJSON.")
