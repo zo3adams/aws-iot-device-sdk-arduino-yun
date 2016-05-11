@@ -24,27 +24,23 @@ import threading
 
 
 class progressiveBackoffCore:
-    # The base reconnection time in seconds, default 1
-    _baseReconnectTimeSecond = 1
-    # The maximum reconnection time in seconds, default 32
-    _maximumReconnectTimeSecond = 32
-    # The minimum time in milliseconds that a connection must be maintained in order to be considered stable
-    # Default 20
-    _minimumConnectTimeSecond = 20
-    # Current backOff time in seconds, init to equal to 0
-    # We do not want to backoff on the first attempt to connect
-    _currentBackoffTimeSecond = 0
-    # Handler for timer
-    _resetBackoffTimer = None
 
-    def __init__(self, srcBaseReconnectTimeSecond=1, srcMaximumReconnectTimeSecond=32, srcMinimumConnectTimeSecond=20):
+    def __init__(self, srcBaseReconnectTimeSecond=1, srcMaximumReconnectTimeSecond=128, srcMinimumConnectTimeSecond=20):
+        # The base reconnection time in seconds, default 1
         self._baseReconnectTimeSecond = srcBaseReconnectTimeSecond
+        # The maximum reconnection time in seconds, default 128
         self._maximumReconnectTimeSecond = srcMaximumReconnectTimeSecond
+        # The minimum time in milliseconds that a connection must be maintained in order to be considered stable
+        # Default 20
         self._minimumConnectTimeSecond = srcMinimumConnectTimeSecond
         self._currentBackoffTimeSecond = 1
+        # Handler for timer
+        self._resetBackoffTimer = None
 
     # For custom progressiveBackoff timing configuration
     def configTime(self, srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond):
+        if  srcBaseReconnectTimeSecond < 0 or srcMaximumReconnectTimeSecond < 0 or srcMinimumConnectTimeSecond < 0:
+            raise ValueError("Negative time configuration detected.")
         if srcBaseReconnectTimeSecond >= srcMinimumConnectTimeSecond:
             raise ValueError("Min connect time should be bigger than base reconnect time.")
         self._baseReconnectTimeSecond = srcBaseReconnectTimeSecond
@@ -63,8 +59,12 @@ class progressiveBackoffCore:
         # Block the reconnect logic
         time.sleep(self._currentBackoffTimeSecond)
         # Update the backoff time
-        # r_cur = min(2^n*r_base, r_max)
-        self._currentBackoffTimeSecond = min(self._maximumReconnectTimeSecond, self._currentBackoffTimeSecond * 2)
+        if self._currentBackoffTimeSecond == 0:
+            # This is the first attempt to connect, set it to base
+            self._currentBackoffTimeSecond = self._baseReconnectTimeSecond
+        else:
+            # r_cur = min(2^n*r_base, r_max)
+            self._currentBackoffTimeSecond = min(self._maximumReconnectTimeSecond, self._currentBackoffTimeSecond * 2)
 
     # Start the timer for resetting _currentBackoffTimeSecond
     # Will be cancelled upon calling backOff

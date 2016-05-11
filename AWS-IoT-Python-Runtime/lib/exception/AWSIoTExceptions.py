@@ -67,6 +67,11 @@ class publishError(operationError.operationError):
         self.message = "Publish Error: " + str(errorCode)
 
 
+class publishQueueFullException(operationError.operationError):
+    def __init__(self):
+        self.message = "Internal Publish Queue Full"
+
+
 class subscribeError(operationError.operationError):
     def __init__(self, errorCode):
         self.message = "Subscribe Error: " + str(errorCode)

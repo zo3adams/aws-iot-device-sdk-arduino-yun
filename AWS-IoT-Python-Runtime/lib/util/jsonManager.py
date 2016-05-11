@@ -7,18 +7,10 @@ class jsonManager:
     # History limits can be configured to control the memory consumption
     # For those entries that are exceeding the history limit, they will be overwritten
     _prefix = "JSON-"
-    _records = None
-    _historyLimits = -1  # -1 means not initialized, 0 means unlimited history
-    _internalCountAccepted = -1
-    _internalCountRejected = -1
-    _internalCountDelta = -1
-    _acceptedHistoryLimits = -1
-    _rejectedHistoryLimits = -1
-    _deltaHistoryLimits = -1
 
     def __init__(self, srcHistoryLimits):
         self._records = dict()
-        self._historyLimits = srcHistoryLimits
+        self._historyLimits = srcHistoryLimits  # 0 means unlimited history
         self._internalCountAccepted = -3
         self._internalCountRejected = -2
         self._internalCountDelta = -1

@@ -20,6 +20,7 @@ sys.path.append("../lib/exception/")
 import AWSIoTCommand
 from AWSIoTExceptions import publishError
 from AWSIoTExceptions import publishTimeoutException
+from AWSIoTExceptions import publishQueueFullException
 
 
 class commandPublish(AWSIoTCommand.AWSIoTCommand):
@@ -50,6 +51,8 @@ class commandPublish(AWSIoTCommand.AWSIoTCommand):
                 returnMessage = "P3F: " + str(e.message)
             except publishTimeoutException as e:
                 returnMessage = "P4F: " + str(e.message)
+            except publishQueueFullException as e:
+                returnMessage = "P5F: " + str(e.message)
             except Exception as e:
                 returnMessage = "PFF: " + "Unknown error."
         self._serialCommServerHandler.writeToInternalProtocol(returnMessage)

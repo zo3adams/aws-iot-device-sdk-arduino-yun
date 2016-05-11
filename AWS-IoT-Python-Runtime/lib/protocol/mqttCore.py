@@ -20,43 +20,32 @@ sys.path.append("./lib/")
 sys.path.append("../lib/")
 import ssl
 import time
+import threading
 import protocol.paho.client as mqtt
+import util.offlinePublishQueue as offlinePublishQueue
 from threading import Lock
 from exception.AWSIoTExceptions import connectError
 from exception.AWSIoTExceptions import connectTimeoutException
 from exception.AWSIoTExceptions import disconnectError
 from exception.AWSIoTExceptions import disconnectTimeoutException
 from exception.AWSIoTExceptions import publishError
+from exception.AWSIoTExceptions import publishQueueFullException
 from exception.AWSIoTExceptions import subscribeError
 from exception.AWSIoTExceptions import subscribeTimeoutException
 from exception.AWSIoTExceptions import unsubscribeError
 from exception.AWSIoTExceptions import unsubscribeTimeoutException
 
 
+# Class that holds queued publish request details
+class _publishRequest:
+    def __init__(self, srcTopic, srcPayload, srcQos, srcRetain):
+        self.topic = srcTopic
+        self.payload = srcPayload
+        self.qos = srcQos
+        self.retain = srcRetain
+
+
 class mqttCore:
-    # Tool handler
-    _pahoClient = None
-    _log = None
-    # Tool data structure
-    _clientID = ""
-    _connectResultCode = sys.maxint
-    _disconnectResultCode = sys.maxint
-    _subscribeSent = False
-    _unsubscribeSent = False
-    _connectdisconnectTimeout = 0  # Default connect/disconnect timeout set to 0 second
-    _mqttOperationTimeout = 0  # Default MQTT operation timeout set to 0 second
-    # Use websocket
-    _useWebsocket = False
-    # Broker information
-    _host = ""
-    _port = -1
-    _cafile = ""
-    _key = ""
-    _cert = ""
-    # Operation mutex
-    _publishLock = Lock()
-    _subscribeLock = Lock()
-    _unsubscribeLock = Lock()
 
     def getClientID(self):
         return self._clientID
@@ -81,18 +70,70 @@ class mqttCore:
     def createPahoClient(self, clientID, cleanSession, userdata, protocol, useWebsocket):
         return mqtt.Client(clientID, cleanSession, userdata, protocol, useWebsocket)  # Throw exception when error happens
 
+    def _doResubscribe(self):
+        if self._subscribePool:
+            self._resubscribeCount = len(self._subscribePool)
+            for key in self._subscribePool.keys():
+                qos, callback = self._subscribePool.get(key)
+                try:
+                    self.subscribe(key, qos, callback)
+                    time.sleep(self._drainingIntervalSecond)  # Subscribe requests should also be sent out using the draining interval
+                except (subscribeError, subscribeTimeoutException):
+                    pass  # Subscribe error resulted from network error, will redo subscription in the next re-connect
+
+    # Performed in a seperate thread, draining the offlinePublishQueue at a given draining rate
+    # Publish theses queued messages to Paho
+    # Should always pop the queue since Paho has its own queueing and retry logic
+    # Should exit immediately when there is an error in republishing queued message
+    # Should leave it to the next round of reconnect/resubscribe/republish logic at mqttCore
+    def _doPublishDraining(self):
+        while True:
+            self._offlinePublishQueueLock.acquire()
+            # This should be a complete publish requests containing topic, payload, qos, retain information
+            # This is the only thread that pops the offlinePublishQueue
+            if self._offlinePublishQueue:
+                queuedPublishRequest = self._offlinePublishQueue.pop(0)
+                # Publish it (call paho API directly)
+                (rc, mid) = self._pahoClient.publish(queuedPublishRequest.topic, queuedPublishRequest.payload, queuedPublishRequest.qos, queuedPublishRequest.retain)
+                if rc != 0:
+                    self._offlinePublishQueueLock.release()
+                    break
+            else:
+                self._drainingComplete = True
+                self._offlinePublishQueueLock.release()
+                break
+            self._offlinePublishQueueLock.release()
+            time.sleep(self._drainingIntervalSecond)
+
     # Callbacks
     def on_connect(self, client, userdata, flags, rc):
         self._disconnectResultCode = sys.maxint
         self._connectResultCode = rc
+        if self._connectResultCode == 0:
+            processResubscription = threading.Thread(target=self._doResubscribe)
+            processResubscription.start()
+        # If we do not have any topics to resubscribe to, still start a new thread to process queued publish requests
+        if not self._subscribePool:
+            offlinePublishQueueDraining = threading.Thread(target=self._doPublishDraining)
+            offlinePublishQueueDraining.start()
         self._log.writeLog("Connect result code " + str(rc))
 
     def on_disconnect(self, client, userdata, rc):
         self._connectResultCode = sys.maxint
         self._disconnectResultCode = rc
+        self._drainingComplete = False  # Draining status should be reset when disconnect happens
         self._log.writeLog("Disconnect result code " + str(rc))
 
     def on_subscribe(self, client, userdata, mid, granted_qos):
+        # Execution of this callback is atomic, guaranteed by Paho
+        # Check if we have got all SUBACKs for all resubscriptions
+        if self._resubscribeCount > 0:
+            self._resubscribeCount -= 1
+            if self._resubscribeCount == 0:
+                # start a thread draining the offline publish queue
+                offlinePublishQueueDraining = threading.Thread(target=self._doPublishDraining)
+                offlinePublishQueueDraining.start()
+                self._resubscribeCount = -1
         self._subscribeSent = True
         self._log.writeLog("Subscribe request " + str(mid) + " sent.")
 
@@ -108,6 +149,8 @@ class mqttCore:
     def __init__(self, clientID, cleanSession, protocol, srcLogManager, srcUseWebsocket=False):
         if clientID is None or cleanSession is None or protocol is None or srcLogManager is None:
             raise TypeError("None type inputs detected.")
+        # All internal data member should be unique per mqttCore intance
+        # Tool handler
         self._log = srcLogManager
         self._clientID = clientID
         self._pahoClient = self.createPahoClient(clientID, cleanSession, None, protocol, srcUseWebsocket)  # User data is set to None as default
@@ -117,8 +160,36 @@ class mqttCore:
         self._pahoClient.on_message = self.on_message
         self._pahoClient.on_subscribe = self.on_subscribe
         self._pahoClient.on_unsubscribe = self.on_unsubscribe
-        self._useWebsocket = srcUseWebsocket
         self._log.writeLog("Register Paho MQTT Client callbacks.")
+        # Tool data structure
+        self._connectResultCode = sys.maxint
+        self._disconnectResultCode = sys.maxint
+        self._subscribeSent = False
+        self._unsubscribeSent = False
+        self._connectdisconnectTimeout = 0  # Default connect/disconnect timeout set to 0 second
+        self._mqttOperationTimeout = 0  # Default MQTT operation timeout set to 0 second
+        # Use Websocket
+        self._useWebsocket = srcUseWebsocket
+        # Subscribe record
+        self._subscribePool = dict()
+        self._resubscribeCount = -1
+        # Broker information
+        self._host = ""
+        self._port = -1
+        self._cafile = ""
+        self._key = ""
+        self._cert = ""
+        # Operation mutex
+        self._publishLock = Lock()
+        self._subscribeLock = Lock()
+        self._unsubscribeLock = Lock()
+        # OfflinePublishQueue
+        self._offlinePublishQueueLock = Lock()
+        self._offlinePublishQueue = offlinePublishQueue.offlinePublishQueue(20, 1)
+        # Draining interval in seconds
+        self._drainingIntervalSecond = 0.5
+        # Is Draining complete
+        self._drainingComplete = True
         self._log.writeLog("mqttCore init.")
 
     def config(self, srcHost, srcPort, srcCAFile, srcKey, srcCert):
@@ -137,6 +208,19 @@ class mqttCore:
         # Below line could raise ValueError if input params are not properly selected
         self._pahoClient.setBackoffTiming(srcBaseReconnectTimeSecond, srcMaximumReconnectTimeSecond, srcMinimumConnectTimeSecond)
         self._log.writeLog("Custom setting for backoff timing.")
+
+    def setOfflinePublishQueueing(self, srcQueueSize, srcDropBehavior=mqtt.MSG_QUEUEING_DROP_NEWEST):
+        if srcQueueSize is None or srcDropBehavior is None:
+            raise TypeError("None type inputs detected.")
+        self._offlinePublishQueue = offlinePublishQueue.offlinePublishQueue(srcQueueSize, srcDropBehavior)
+        self._log.writeLog("Custom setting for publish queueing.")
+
+    def setDrainingIntervalSecond(self, srcDrainingIntervalSecond):
+        if srcDrainingIntervalSecond is None:
+            raise TypeError("None type inputs detected.")
+        if srcDrainingIntervalSecond < 0:
+            raise ValueError("Draining interval should not be negative.")
+        self._drainingIntervalSecond = srcDrainingIntervalSecond
 
     # MQTT connection
     def connect(self, keepAliveInterval=60):
@@ -195,18 +279,31 @@ class mqttCore:
             raise TypeError("None type inputs detected.")
         # Return publish succeeded/failed
         ret = False
-        self._publishLock.acquire()
-        # Publish
-        (rc, mid) = self._pahoClient.publish(topic, payload, qos, retain)  # Throw exception...
-        self._log.writeLog("Try to put a publish request " + str(mid) + " in the TCP stack.")
-        ret = rc == 0
-        if(ret):
-            self._log.writeLog("Publish request " + str(mid) + " succeeded.")
+        # Queueing should happen when disconnected or draining is in progress
+        self._offlinePublishQueueLock.acquire()
+        queuedPublishCondition = not self._drainingComplete or self._connectResultCode == sys.maxint
+        if queuedPublishCondition:
+            # Publish to the queue and report error (raise Exception)
+            currentQueuedPublishRequest = _publishRequest(topic, payload, qos, retain)
+            if not self._offlinePublishQueue.append(currentQueuedPublishRequest):
+                self._offlinePublishQueueLock.release()
+                raise publishQueueFullException()
+            self._offlinePublishQueueLock.release()
+        # Publish to Paho
         else:
-            self._log.writeLog("Publish request " + str(mid) + " failed with code: " + str(rc))
-            self._publishLock.release()  # Release the lock when exception is raised
-            raise publishError(rc)
-        self._publishLock.release()
+            self._offlinePublishQueueLock.release()
+            self._publishLock.acquire()
+            # Publish
+            (rc, mid) = self._pahoClient.publish(topic, payload, qos, retain)  # Throw exception...
+            self._log.writeLog("Try to put a publish request " + str(mid) + " in the TCP stack.")
+            ret = rc == 0
+            if(ret):
+                self._log.writeLog("Publish request " + str(mid) + " succeeded.")
+            else:
+                self._log.writeLog("Publish request " + str(mid) + " failed with code: " + str(rc))
+                self._publishLock.release()  # Release the lock when exception is raised
+                raise publishError(rc)
+            self._publishLock.release()
         return ret
 
     def subscribe(self, topic, qos, callback):
@@ -228,6 +325,7 @@ class mqttCore:
         if(self._subscribeSent):
             ret = rc == 0
             if(ret):
+                self._subscribePool[topic] = (qos, callback)
                 self._log.writeLog("Subscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
             else:
                 if(callback is not None):
@@ -265,6 +363,10 @@ class mqttCore:
         if(self._unsubscribeSent):
             ret = rc == 0
             if(ret):
+                try:
+                    del self._subscribePool[topic]
+                except KeyError:
+                    pass  # Ignore topics that are never subscribed to
                 self._log.writeLog("Unsubscribe request " + str(mid) + " succeeded. Time consumption: " + str(float(TenmsCount) * 10) + "ms.")
                 self._pahoClient.message_callback_remove(topic)
                 self._log.writeLog("Remove the callback.")

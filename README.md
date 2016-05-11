@@ -112,6 +112,8 @@ API:
 [IoT\_Error\_t config(const char\* host, unsigned int port, const char\* cafile_path, const char\* keyfile\_path, const char\* certfile\_path)](#config)  
 [IoT\_Error\_t configWss(const char\* host, unsigned int port, const char\* cafile_path)](#configWss)  
 [IoT\_Error\_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond)](#configBackoffTiming)  
+[IoT\_Error\_t configOfflinePublishQueue(unsigned int queueSize, DropBehavior\_t behavior)](#configOfflinePublishQueue)  
+[IoT\_Error\_t configDrainingInterval(float numberOfSeconds)](#configDrainingInterval)  
 [IoT\_Error\_t connect(unsigned int keepalive\_interval)](#connect)  
 [IoT\_Error\_t publish(const char\* topic, const char\* payload, unsigned int payload\_len, unsigned int qos, bool retain)](#publish)  
 [IoT\_Error\_t subscribe(const char\* topic, unsigned int qos, message\_callback cb)](#subscribe)  
@@ -209,9 +211,8 @@ Configure the progressive backoff timing on reconnect. Time interval for reconne
 Note that if this API is not called, the following default values will be used to configure the backoff timing:  
 
 	baseReconnectQuietTimeSecond = 1;
-	maxReconnectQuietTimeSecond = 32;
+	maxReconnectQuietTimeSecond = 128;
 	stableConnectionTimeSecond = 20;
-
 
 **Syntax**  
 
@@ -221,6 +222,47 @@ Note that if this API is not called, the following default values will be used t
 *baseReconnectQuietTimeSecond* - Number of seconds to start with for progressive backoff on reconnect.  
 *maxReconnectQuietTimeSecond* - Maximum number of seconds for progressive backoff on reconnect.   
 *stableConnectionTimeSecond* - Number of seconds for a valid connection to be considered stable.  
+
+<a name="configOfflinePublishQueue"></a>
+### IoT\_Error\_t configOfflinePublishQueue(unsigned int queueSize, DropBehavior\_t behavior)  
+**Description**  
+Configure the internal queue size and its drop behaivor once the queue is full in the Python runtime on the OpenWRT side. When the client is offline, publish requests will be queued up and get resent once the network connection is back. If the number of publish requests exceeds the maximum size of the queue configued, dropping will happen according the drop behavior configured by this API. More details about offline publish requests queueing can be found [here](#offlinePublishQueueDraining).  
+
+**Syntax**  
+
+	object.configOfflinePublishQueue(20, DROP_OLDEST); // Configure size of the offline publish requests queue to be 20. Configure the queue to drop the oldest requests once the queue is full.
+	object.configOfflinePublishQueue(20, DROP_NEWEST); // Configure size of the offline publish requests queue to be 20. Configure the queue to drop the newest requests once the queue is full.
+	object.configOfflinePublishQueue(0, DROP_OLDEST); // Configure size of the offline publish requests queue to be infinite. The queue-full drop behavior is ignored when the size if infinite.
+	
+**Parameters**  
+*queueSize* - The size of the offline publish requests queue, determining how many publish requests can be queued up while the client it offline.  
+*behavior* - The drop behavior when the offline publish requests queue is full. Can be configured to drop the oldest requests or the newest requests in the queue.  
+
+**Returns**  
+NONE\_ERROR if the configuration is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.
+
+<a name="configDrainingInterval"></a>
+### IoT\_Error\_t configDrainingInterval(float numberOfSeconds)  
+**Description**  
+Configure the draining interval for requests to be sent out when client is back online and gets connected. This will affect the outbound rate for republish and resubscribe requests. More details about draining can be found [here](#offlinePublishQueueDraining).  
+
+**Syntax**  
+
+	object.configDrainingInterval(0.5); // Configure the draining interval to be 0.5 seconds. In this way, resubscribe requests, if any, will be sent per 0.5 seconds. Offline publish requests, if any in the queue, will be sent per 0.5 seconds.
+
+**Parameters**  
+*numberOfSeconds* - Number of seconds to wait between every resubscribe/republish request when the client is back online and connected.  
+
+**Returns**  
+NONE\_ERROR if the configuration is successful.  
+NO\_SET\_UP\_ERROR if no setup is called before this call.  
+WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
+CONFIG\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
+GENERIC\_ERROR if an unknown error happens.  
 
 <a name="connect"></a>
 ### IoT\_Error\_t connect(unsigned int keepalive\_interval)
@@ -271,6 +313,7 @@ NO\_SET\_UP\_ERROR if no setup is called before this call.
 WRONG\_PARAMETER\_ERROR if there is an error for the Python Runtime to get enought input parameters for this command.  
 PUBLISH\_ERROR if the publish failed.  
 PUBLISH\_TIMEOUT if the publish gets timeout.  
+PUBLISH\_QUEUE\_FULL if the internal offline publish requests queue is full.  
 PUBLISH\_GENERIC\_ERROR if there is an error in executing the command in Python Runtime.  
 GENERIC\_ERROR if an unknown error happens.
 
@@ -760,9 +803,63 @@ The reconnect quiet time will be doubled on disconnect and reconnect attempt uti
 If no `configBackoffTiming` gets called, the following default configuration for backoff timing will be done on `setup` call:  
 
 	baseReconnectQuietTimeSecond = 1;
-	maxReconnectQuietTimeSecond = 32;
+	maxReconnectQuietTimeSecond = 128;
 	stableConnectionTimeSecond = 20;
 
+<a name="offlinePublishQueueDraining"></a>
+#### Offline publish requests queueing with draining  
+APIs are provided to configure the offline publish requests queueing (size and drop behavior) as well as draining intervals:  
+[IoT\_Error\_t configOfflinePublishQueue(unsigned int queueSize, DropBehavior\_t behavior)](#configOfflinePublishQueue)  
+[IoT\_Error\_t configDrainingInterval(float numberOfSeconds)](#configDrainingInterval)  
+
+When the client is temporarily offline and gets disconnected due to some network failure, publish requests will be queued up into an internal queue in the Python runtime on the OpenWRT side until the number of queued-up requests reaches to the size limit of the queue. Once the queue is full, offline publish requests will be discarded or replaced according to different configuration of the drop behavior:  
+
+	typedef enum {
+		DROP_OLDEST = 0,
+		DROP_NEWEST = 1
+	} DropBehavior_t;
+
+Lets say we configure the size of offlinePublishQueue to be 5 and we have 7 offline publish requests coming in...  
+
+In a `DROP_OLDEST` configuration:  
+
+	myClient.configOfflinePublishQueue(5, DROP_OLDEST);
+
+The internal queue should be like this when the queue is just full:  
+
+	HEAD ['pub_req0', 'pub_req1', 'pub_req2', 'pub_req3', 'pub_req4']
+	
+When the 6th and the 7th publish requests are made offline, the internal queue will be like this:  
+
+	HEAD ['pub_req2', 'pub_req3', 'pub_req4', 'pub_req5', 'pub_req6']
+
+Since the queue is already full, the oldest requests `pub_req0` and `pub_req1` are discarded.  
+
+In a `DROP_NEWEST` configuration:  
+
+	myClient.configOfflinePublishQueue(5, DROP_NEWEST);
+
+The internal queue should be like this when the queue is just full:  
+
+	HEAD ['pub_req0', 'pub_req1', 'pub_req2', 'pub_req3', 'pub_req4']
+	
+When the 6th and the 7th publish requests are made offline, the internal queue will be like this:  
+
+	HEAD ['pub_req0', 'pub_req1', 'pub_req2', 'pub_req3', 'pub_req4']
+
+Since the queue is already full, the newest requests `pub_req5` and `pub_req6` are discarded.  
+
+When the client is back online, connected and resubscribed to all topics that it has previously subscribed to, the draining starts. All requests in the offline publish queue will be resent at the configured draining rate.  
+
+if no `configOfflinePublishQueue` or `configDrainingInterval` is called, the following default configuration for offline publish queueing and draining will be done on setup call:  
+
+	offlinePublishQueueSize = 20
+	dropBehavior = DROP_NEWEST
+	drainingInterval = 0.5 sec
+
+Note that before the draining process finishes, any new publish request within this time will be added to the queue. Therefore, draining rate should be higher than the normal publish rate to avoid an endless draining process after reconnect.  
+
+Also note that disconnect event is detected based on PINGRESP MQTT packet loss. Offline publish queueing will NOT be triggered until the disconnect event gets detected. Configuring a shorter keep-alive interval allows the client to detect disconnects more quickly. Any QoS0 publish requests issued after the network failure and before the detection of the PINGRESP loss will be lost.  
 
 <a name="usingthesdk"></a>
 ## Using the SDK
@@ -1118,7 +1215,8 @@ The following error codes are defined in `AWS-IoT-Arduino-Yun-Library/aws_iot_er
 		WEBSOCKET_CREDENTIAL_NOT_FOUND = -36,
 		JSON_FILE_NOT_FOUND = -37,
 		JSON_KEY_NOT_FOUND = -38,
-		JSON_GENERIC_ERROR = -39
+		JSON_GENERIC_ERROR = -39,
+		PUBLISH_QUEUE_FULL = 40
 	} IoT_Error_t;
 	
 <a name="support"></a>

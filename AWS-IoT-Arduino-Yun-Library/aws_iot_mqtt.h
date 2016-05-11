@@ -51,6 +51,12 @@ typedef enum {
 	DELTA_SECTION = 3
 } KV_access_t;
 
+// PublishQueue Drop Behavior type
+typedef enum {
+	DROP_OLDEST = 0,
+	DROP_NEWEST = 1
+} DropBehavior_t;
+
 typedef void(*message_callback)(char*, unsigned int, Message_status_t);
 
 class aws_iot_mqtt_client {
@@ -89,6 +95,10 @@ class aws_iot_mqtt_client {
 		IoT_Error_t getValueByKey(const char* JSONIdentifier, const char* key, char* externalJSONBuf, unsigned int bufSize);
 		// Progressive backoff configuration
 		IoT_Error_t configBackoffTiming(unsigned int baseReconnectQuietTimeSecond, unsigned int maxReconnectQuietTimeSecond, unsigned int stableConnectionTimeSecond);
+		// Offline publish queue configuration
+		IoT_Error_t configOfflinePublishQueue(unsigned int queueSize, DropBehavior_t behavior);
+		// Draining interval configuration
+		IoT_Error_t configDrainingInterval(float numberOfSeconds);
 
 	private:
 		typedef struct {

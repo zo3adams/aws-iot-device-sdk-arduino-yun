@@ -17,13 +17,7 @@
 
 
 class _shadowAction:
-    _shadowName = None
-    _actionName = None
-    _topicGeneral = None
-    _topicAccept = None
-    _topicReject = None
-    _topicDelta = None
-    isDelta = False
+
     _actionType = ["get", "update", "delete", "delta"]
 
     def __init__(self, srcShadowName, srcActionName):
@@ -31,6 +25,10 @@ class _shadowAction:
             raise TypeError("Unsupported shadow action.")
         self._shadowName = srcShadowName
         self._actionName = srcActionName
+        self._topicGeneral = None
+        self._topicAccept = None
+        self._topicReject = None
+        self._topicDelta = None
         self.isDelta = srcActionName == "delta"
         if self.isDelta:
             self._topicDelta = "$aws/things/" + str(self._shadowName) + "/shadow/update/delta"

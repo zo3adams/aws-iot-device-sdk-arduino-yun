@@ -15,20 +15,15 @@
  */
  '''
 
-import sys
-sys.path.append("../lib/exception/")
 import AWSIoTCommand
-from ssl import SSLError
-from AWSIoTExceptions import connectError
-from AWSIoTExceptions import connectTimeoutException
 
 
-class commandConnect(AWSIoTCommand.AWSIoTCommand):
-    # Target API: mqttCore.connect(keepAliveInterval)
+class commandSetDrainingIntervalSecond(AWSIoTCommand.AWSIoTCommand):
+    # Target API: mqttCore.setDrainingIntervalSecond(srcDrainingIntervalSecond)
     _mqttCoreHandler = None
 
     def __init__(self, srcParameterList, srcSerialCommuteServer, srcMQTTCore):
-        self._commandProtocolName = "c"
+        self._commandProtocolName = "di"
         self._parameterList = srcParameterList
         self._serialCommServerHandler = srcSerialCommuteServer
         self._mqttCoreHandler = srcMQTTCore
@@ -39,24 +34,16 @@ class commandConnect(AWSIoTCommand.AWSIoTCommand):
         return ret and AWSIoTCommand.AWSIoTCommand._validateCommand(self)
 
     def execute(self):
-        returnMessage = "C T"
+        returnMessage = "DI T"
         if not self._validateCommand():
-            returnMessage = "C1F: " + "No setup."
+            returnMessage = "DI1F: " + "No setup."
         else:
             try:
-                self._mqttCoreHandler.connect(int(self._parameterList[0]))
+                self._mqttCoreHandler.setDrainingIntervalSecond(float(self._parameterList[0]))
             except TypeError as e:
-                returnMessage = "C2F: " + str(e.message)
-            except SSLError as e:
-                returnMessage = "C3F: " + "Mutual Auth issues."
-            except connectError as e:
-                returnMessage = "C4F: " + str(e.message)
-            except connectTimeoutException as e:
-                returnMessage = "C5F: " + str(e.message)
-            except IOError as e:
-                returnMessage = "C6F: " + "Credentials not found."
+                returnMessage = "DI2F: " + str(e.message)
             except ValueError as e:
-                returnMessage = "C7F: " + "Key/KeyID not in $ENV."
+                returnMessage = "DI3F: " + str(e.message)
             except Exception as e:
-                returnMessage = "CFF: " + "Unknown error."
+                returnMessage = "DIFF: " + "Unknown error."
         self._serialCommServerHandler.writeToInternalProtocol(returnMessage)

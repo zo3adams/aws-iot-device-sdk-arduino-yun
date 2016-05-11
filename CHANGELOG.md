@@ -1,3 +1,13 @@
+# 2.1.0 (May 11th, 2016)  
+Features:  
+
+* Added new API for configurable offline publish requests queueing for both QoS0 and QoS1.  
+* Added new API for configurable draining mechanism for queued publish/resubscribe requests.  
+
+Bugfixes/Improvements:  
+
+* Improved auto-resubscribe logic to allow resubscribe requests go out at a configured draining rate.  
+
 # 2.0.0 (April 26th, 2016)
 Features:  
 

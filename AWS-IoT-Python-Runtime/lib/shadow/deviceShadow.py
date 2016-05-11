@@ -21,17 +21,15 @@ sys.path.append("../lib/exception/")
 import json
 import string
 import random
-from threading import Timer, Lock
+from threading import Timer, Lock, Thread
 
 
 class _shadowRequestToken:
-    _shadowName = ""
-    _clientID = ""
-    _sequenceNumber = 0
 
     def __init__(self, srcShadowName, srcClientID):
         self._shadowName = srcShadowName
         self._clientID = srcClientID
+        self._sequenceNumber = 0
 
     def getNextToken(self):
         ret = self._clientID + "_" + self._shadowName + "_" + str(self._sequenceNumber) + "_" + self._randomString(5)
@@ -43,11 +41,10 @@ class _shadowRequestToken:
 
 
 class _basicJSONParser:
-    _rawString = ""
-    _dictionObject = None
 
     def setString(self, srcString):
         self._rawString = srcString
+        self._dictionObject = None
 
     def regenerateString(self):
         return json.dumps(self._dictionObject)
@@ -67,37 +64,35 @@ class _basicJSONParser:
 
 
 class deviceShadow:
-    # Tool handler
-    _shadowManagerHandler = None
-    _basicJSONParserHandler = _basicJSONParser()
-    _tokenHandler = None
-    # Properties
-    _shadowName = ""
-    _lastVersionInSync = -1  # -1 means not initialized
-    _isPersistentSubscribe = False
-    # Tool data structure
-    _isGetSubscribed = False
-    _isUpdateSubscribed = False
-    _isDeleteSubscribed = False
-    _shadowSubscribeCallbackTable = dict()
-    _shadowSubscribeStatusTable = dict()
-    _tokenPool = dict()
-    _dataStructureLock = Lock()
 
     def __init__(self, srcShadowName, srcIsPersistentSubscribe, srcShadowManager):
         if srcShadowName is None or srcIsPersistentSubscribe is None or srcShadowManager is None:
             raise TypeError("None type inputs detected.")
         self._shadowName = srcShadowName
-        self._isPersistentSubscribe = srcIsPersistentSubscribe
+        # Tool handler
         self._shadowManagerHandler = srcShadowManager
+        self._basicJSONParserHandler = _basicJSONParser()
         self._tokenHandler = _shadowRequestToken(self._shadowName, self._shadowManagerHandler.getClientID())
+        # Properties
+        self._isPersistentSubscribe = srcIsPersistentSubscribe
+        self._lastVersionInSync = -1  # -1 means not initialized
+        self._isGetSubscribed = False
+        self._isUpdateSubscribed = False
+        self._isDeleteSubscribed = False
+        self._shadowSubscribeCallbackTable = dict()
         self._shadowSubscribeCallbackTable["get"] = None
         self._shadowSubscribeCallbackTable["delete"] = None
         self._shadowSubscribeCallbackTable["update"] = None
         self._shadowSubscribeCallbackTable["delta"] = None
+        self._shadowSubscribeStatusTable = dict()
         self._shadowSubscribeStatusTable["get"] = 0
         self._shadowSubscribeStatusTable["delete"] = 0
         self._shadowSubscribeStatusTable["update"] = 0
+        self._tokenPool = dict()
+        self._dataStructureLock = Lock()
+
+    def _doNonePersistentUnsubscribe(self, currentAction):
+        self._shadowManagerHandler.basicShadowUnsubscribe(self._shadowName, currentAction)
 
     def _generalCallback(self, client, userdata, message):
         self._dataStructureLock.acquire()
@@ -127,7 +122,8 @@ class deviceShadow:
                     self._shadowSubscribeStatusTable[currentAction] -= 1
                     if not self._isPersistentSubscribe and self._shadowSubscribeStatusTable.get(currentAction) <= 0:
                         self._shadowSubscribeStatusTable[currentAction] = 0
-                        self._shadowManagerHandler.basicShadowUnsubscribe(self._shadowName, currentAction)
+                        processNonPersistentUnsubscribe = Thread(target=self._doNonPersistentUnsubscribe, args=[currentAction])
+                        processNonPersistentUnsubscribe.start()
                     # Custom callback
                     if self._shadowSubscribeCallbackTable.get(currentAction) is not None:
                         self._shadowSubscribeCallbackTable[currentAction](str(message.payload), currentType, currentToken)

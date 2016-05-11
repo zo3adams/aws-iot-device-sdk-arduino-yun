@@ -40,6 +40,8 @@ from command.commandYield import *
 from command.commandLockSize import *
 from command.commandJSONKeyVal import *
 from command.commandSetBackoffTiming import *
+from command.commandSetOfflinePublishQueueing import *
+from command.commandSetDrainingIntervalSecond import *
 from protocol.paho.client import *
 # import traceback
 
@@ -221,6 +223,12 @@ class runtimeHub:
             # Backoff Timing Config
             elif srcProtocolMessage[0] == 'bf':
                 retCommand = commandSetBackoffTiming(srcProtocolMessage[1:], self._serialCommunicationServerHub, self._mqttCoreHub)
+            # Offline Publish Queue Config
+            elif srcProtocolMessage[0] == 'pq':
+                retCommand = commandSetOfflinePublishQueueing(srcProtocolMessage[1:], self._serialCommunicationServerHub, self._mqttCoreHub)
+            # Draining Interval Config
+            elif srcProtocolMessage[0] == 'di':
+                retCommand = commandSetDrainingIntervalSecond(srcProtocolMessage[1:], self._serialCommunicationServerHub, self._mqttCoreHub)
             # Exit the runtimeHub
             elif srcProtocolMessage[0] == "~":
                 retCommand = AWSIoTCommand.AWSIoTCommand("~")

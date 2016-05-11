@@ -15,48 +15,35 @@
  */
  '''
 
-import sys
-sys.path.append("../lib/exception/")
 import AWSIoTCommand
-from ssl import SSLError
-from AWSIoTExceptions import connectError
-from AWSIoTExceptions import connectTimeoutException
 
 
-class commandConnect(AWSIoTCommand.AWSIoTCommand):
-    # Target API: mqttCore.connect(keepAliveInterval)
+class commandSetOfflinePublishQueueing(AWSIoTCommand.AWSIoTCommand):
+    # Target API: mqttCore.setOfflinePublishQueueing(srcQueueSize, srcDropBehavior)
     _mqttCoreHandler = None
 
     def __init__(self, srcParameterList, srcSerialCommuteServer, srcMQTTCore):
-        self._commandProtocolName = "c"
+        self._commandProtocolName = "pq"
         self._parameterList = srcParameterList
         self._serialCommServerHandler = srcSerialCommuteServer
         self._mqttCoreHandler = srcMQTTCore
-        self._desiredNumberOfParameters = 1
+        self._desiredNumberOfParameters = 2
 
     def _validateCommand(self):
         ret = self._mqttCoreHandler is not None and self._serialCommServerHandler is not None
         return ret and AWSIoTCommand.AWSIoTCommand._validateCommand(self)
 
     def execute(self):
-        returnMessage = "C T"
+        returnMessage = "PQ T"
         if not self._validateCommand():
-            returnMessage = "C1F: " + "No setup."
+            returnMessage = "PQ1F: " + "No setup."
         else:
             try:
-                self._mqttCoreHandler.connect(int(self._parameterList[0]))
+                self._mqttCoreHandler.setOfflinePublishQueueing(int(self._parameterList[0]), int(self._parameterList[1]))
             except TypeError as e:
-                returnMessage = "C2F: " + str(e.message)
-            except SSLError as e:
-                returnMessage = "C3F: " + "Mutual Auth issues."
-            except connectError as e:
-                returnMessage = "C4F: " + str(e.message)
-            except connectTimeoutException as e:
-                returnMessage = "C5F: " + str(e.message)
-            except IOError as e:
-                returnMessage = "C6F: " + "Credentials not found."
+                returnMessage = "PQ2F: " + str(e.message)
             except ValueError as e:
-                returnMessage = "C7F: " + "Key/KeyID not in $ENV."
+                returnMessage = "PQ3F: " + str(e.message)
             except Exception as e:
-                returnMessage = "CFF: " + "Unknown error."
+                returnMessage = "PQFF: " + "Unknown error."
         self._serialCommServerHandler.writeToInternalProtocol(returnMessage)

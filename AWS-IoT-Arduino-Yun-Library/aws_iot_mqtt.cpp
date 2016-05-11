@@ -26,6 +26,7 @@
 #define NEXTLINE_KEY 10 // ASCII code for '\n'
 #define MAX_NUM_PARA 6 // Maximum number of parameters in protocol communication
 #define NUM_ATTEMPT_BEFORE_EXIT MAX_NUM_PARA/2+1 // Number of '~' to fully exit the protocol command
+
 const char* OUT_OF_BUFFER_ERR_MSG = "OUT OF BUFFER SIZE";
 const char* EMPTY_STRING = "";
 
@@ -175,6 +176,53 @@ IoT_Error_t aws_iot_mqtt_client::configBackoffTiming(unsigned int baseReconnectQ
 	return rc;
 }
 
+IoT_Error_t aws_iot_mqtt_client::configOfflinePublishQueue(unsigned int queueSize, DropBehavior_t behavior) {
+	IoT_Error_t rc = NONE_ERROR;
+
+	exec_cmd("3\n", false, false);
+
+	exec_cmd("pq\n", false, false);
+
+	sprintf(rw_buf, "%d\n", queueSize);
+	exec_cmd(rw_buf, false, false);
+
+
+	sprintf(rw_buf, "%d\n", behavior);
+	exec_cmd(rw_buf, true, false);
+
+	if(strncmp(rw_buf, "PQ T", 4) != 0) {
+		if(strncmp(rw_buf, "PQ1F", 4) == 0) {rc = NO_SET_UP_ERROR;}
+		else if(strncmp(rw_buf, "PQ2F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "PQ3F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "PQFF", 4) == 0) {rc = CONFIG_GENERIC_ERROR;}
+		else rc = GENERIC_ERROR;
+	}
+
+	return rc;
+}
+
+IoT_Error_t aws_iot_mqtt_client::configDrainingInterval(float numberOfSeconds) {
+	IoT_Error_t rc = NONE_ERROR;
+
+	exec_cmd("2\n", false, false);
+
+	exec_cmd("di\n", false, false);
+
+	dtostrf(numberOfSeconds, 5, 2, rw_buf); // Only support XX.XX (including sign+/-)
+	strcat(rw_buf, "\n");
+	exec_cmd(rw_buf, true, false);
+
+	if(strncmp(rw_buf, "DI T", 4) != 0) {
+		if(strncmp(rw_buf, "DI1F", 4) == 0) {rc = NO_SET_UP_ERROR;}
+		else if(strncmp(rw_buf, "DI2F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "DI3F", 4) == 0) {rc = WRONG_PARAMETER_ERROR;}
+		else if(strncmp(rw_buf, "DIFF", 4) == 0) {rc = CONFIG_GENERIC_ERROR;}
+		else rc = GENERIC_ERROR;
+	}
+
+	return rc;
+}
+
 IoT_Error_t aws_iot_mqtt_client::connect(unsigned int keepalive_interval) {
 	IoT_Error_t rc = NONE_ERROR;
 	exec_cmd("2\n", false, false);
@@ -226,6 +274,7 @@ IoT_Error_t aws_iot_mqtt_client::publish(const char* topic, const char* payload,
 			else if(strncmp(rw_buf, "P2F", 3) == 0) {rc = WRONG_PARAMETER_ERROR;}
 			else if(strncmp(rw_buf, "P3F", 3) == 0) {rc = PUBLISH_ERROR;}
 			else if(strncmp(rw_buf, "P4F", 3) == 0) {rc = PUBLISH_TIMEOUT;}
+			else if(strncmp(rw_buf, "P5F", 3) == 0) {rc = PUBLISH_QUEUE_FULL;}
 			else if(strncmp(rw_buf, "PFF", 3) == 0) {rc = PUBLISH_GENERIC_ERROR;}
 			else rc = GENERIC_ERROR;
 		}
