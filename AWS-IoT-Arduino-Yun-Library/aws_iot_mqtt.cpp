@@ -748,7 +748,7 @@ IoT_Error_t aws_iot_mqtt_client::getJSONValueLoop(const char* JSONIdentifier, co
 		sprintf(rw_buf, "%d\n", isFirst);
 		exec_cmd(rw_buf, true, false);
 
-		if(strncmp(rw_buf, "J F", 3) == 0) {break;} // End of JSON value string transmission
+		if(strncmp(rw_buf, "J0F", 3) == 0) {break;} // End of JSON value string transmission
 		else if(strncmp(rw_buf, "J1F", 3) == 0) {
 			rc = NO_SET_UP_ERROR;
 			break;

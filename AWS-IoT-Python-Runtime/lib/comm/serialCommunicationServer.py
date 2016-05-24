@@ -148,5 +148,5 @@ class serialCommunicationServer(communicationServer.communicationServer):
             self._log.writeLog("JSON: Send through serial to remote client. Chunk: " + self._txBuf + " Size: " + str(len(self._txBuf)))
             self._jsonBuf = self._jsonBuf[self._chunkSize:]
         else:
-            self._basicOutput("J F: No JSON chunks.")
+            self._basicOutput("J0F: No JSON chunks.")
             self._log.writeLog("No more chunks for this JSON payload. Exiting writeToExternalJSON.")

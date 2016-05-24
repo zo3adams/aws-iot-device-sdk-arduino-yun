@@ -1,3 +1,12 @@
+#2.1.1 (May 23th, 2016)  
+Features:  
+
+N/A  
+
+Bugfixes.Improvements:  
+
+* Fixed issue in retrieving shadow JSON key/value pair where value starts with a certain letter conflicts with the internal protocol.
+
 # 2.1.0 (May 11th, 2016)  
 Features:  
 
